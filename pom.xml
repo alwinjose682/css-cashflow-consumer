@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.alw.css</groupId>
+        <artifactId>css-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../css-lib/css-parent/pom.xml</relativePath>
+    </parent>
+
+    <artifactId>cashflow-consumer</artifactId>
+
+    <properties>
+        <drools-version>9.44.0.Final</drools-version>
+        <kogito.bom.version>1.44.1.Final</kogito.bom.version>
+<!--        <hibernate-version>6.5.3.Final</hibernate-version>-->
+    </properties>
+
+    <!-- All dependencies are imported either from 'css-services' or 'css-parent' poms -->
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>jakarta.validation</groupId>
+            <artifactId>jakarta.validation-api</artifactId>
+
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jdk8</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.drools</groupId>
+            <artifactId>drools-ruleunits-engine</artifactId>
+            <version>${drools-version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.drools</groupId>
+            <artifactId>drools-decisiontables</artifactId>
+            <version>${drools-version}</version>
+        </dependency>
+
+        <!--        CSS Dependencies       -->
+        <dependency>
+            <groupId>io.alw.css.domain</groupId>
+            <artifactId>cashflow</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.alw.css</groupId>
+            <artifactId>tx-template</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.alw.css.domain</groupId>
+            <artifactId>common</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.alw.css.domain</groupId>
+            <artifactId>exception</artifactId>
+            <version>1.0.0</version>
+            <!--            <scope>compile</scope>-->
+        </dependency>
+
+        <!--        TEST DEPENDENCIES       -->
+        <dependency>
+            <groupId>org.drools</groupId>
+            <artifactId>drools-wiring-dynamic</artifactId>
+            <version>${drools-version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <!--            drools execution model          -->
+                <groupId>org.kie</groupId>
+                <artifactId>kie-maven-plugin</artifactId>
+                <version>${drools-version}</version>
+                <extensions>true</extensions>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
