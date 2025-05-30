@@ -1,33 +1,37 @@
 package io.alw.css.cashflowconsumer.service;
 
-import io.alw.css.cashflowconsumer.dao.CashflowDao;
-import io.alw.css.cashflowconsumer.mapper.FoCashMessageMapper;
+import io.alw.css.cashflowconsumer.processor.CashflowEnricher;
+import io.alw.css.cashflowconsumer.processor.CashflowValidator;
+import io.alw.css.cashflowconsumer.processor.CashflowVersionManager;
+import io.alw.css.cashflowconsumer.repository.CashflowStore;
+import io.alw.css.cashflowconsumer.processor.FoCashMessageMapper;
 import io.alw.css.dbshared.tx.TXRW;
 import io.alw.css.domain.cashflow.*;
-import io.alw.css.domain.exception.ExceptionConstants;
+import io.alw.css.domain.exception.CssException;
+import io.alw.css.domain.exception.ExceptionCategory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static io.alw.css.cashflowconsumer.service.CashflowVersionService.CFProcessedCheckOutcome.FirstVersion;
-import static io.alw.css.cashflowconsumer.service.CashflowVersionService.CFProcessedCheckOutcome.NonFirstVersion;
-import static io.alw.css.cashflowconsumer.service.CashflowVersionService.CFProcessedCheckOutcome.AlreadyProcessed;
-import static io.alw.css.cashflowconsumer.service.CashflowVersionService.CFProcessedCheckOutcome.LastCashflowIsCancelled;
+import static io.alw.css.cashflowconsumer.processor.CashflowVersionManager.CFProcessedCheckOutcome.FirstVersion;
+import static io.alw.css.cashflowconsumer.processor.CashflowVersionManager.CFProcessedCheckOutcome.NonFirstVersion;
+import static io.alw.css.cashflowconsumer.processor.CashflowVersionManager.CFProcessedCheckOutcome.AlreadyProcessed;
+import static io.alw.css.cashflowconsumer.processor.CashflowVersionManager.CFProcessedCheckOutcome.LastCashflowIsCancelled;
 
 @Service
 public class CashflowService {
     private static final Logger log = LoggerFactory.getLogger(CashflowService.class);
-    private final CashflowDao cashflowDao;
-    private final CashflowVersionService cashflowVersionService;
+    private final CashflowStore cashflowStore;
+    private final CashflowVersionManager cashflowVersionManager;
     private final CashflowValidator cashflowValidator;
     private final CashflowEnricher cashflowEnricher;
     private final TXRW txrw;
 
-    public CashflowService(CashflowDao cashflowDao, CashflowVersionService cashflowVersionService, CashflowValidator cashflowValidator, CashflowEnricher cashflowEnricher, TXRW txrw) {
-        this.cashflowDao = cashflowDao;
-        this.cashflowVersionService = cashflowVersionService;
+    public CashflowService(CashflowStore cashflowStore, CashflowVersionManager cashflowVersionManager, CashflowValidator cashflowValidator, CashflowEnricher cashflowEnricher, TXRW txrw) {
+        this.cashflowStore = cashflowStore;
+        this.cashflowVersionManager = cashflowVersionManager;
         this.cashflowValidator = cashflowValidator;
         this.cashflowEnricher = cashflowEnricher;
         this.txrw = txrw;
@@ -45,23 +49,23 @@ public class CashflowService {
 
         saveAudit(foCashflowID, foCashflowVersion, tradeID, tradeVersion, tradeType);
         CashflowBuilder cashflowBuilder = FoCashMessageMapper.mapToDomain(foMsg);
-        CashflowVersionService.CFProcessedCheckOutcome cfProcessedCheckOutcome = cashflowVersionService.checkAgainstLastProcessedCashflow(foCashflowID, foCashflowVersion, tradeID, tradeVersion);
+        CashflowVersionManager.CFProcessedCheckOutcome cfProcessedCheckOutcome = cashflowVersionManager.checkAgainstLastProcessedCashflow(foCashflowID, foCashflowVersion, tradeID, tradeVersion);
         switch (cfProcessedCheckOutcome) {
             case FirstVersion _ -> {
                 validateAndEnrich(cashflowBuilder);
-                Cashflow firstVersionCashflow = cashflowVersionService.createFirstVersionCF(cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
+                Cashflow firstVersionCashflow = cashflowVersionManager.createFirstVersionCF(cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
                 List<Cashflow> cashflows = List.of(firstVersionCashflow);
             }
             case NonFirstVersion(var lastProcessedCashflow) -> {
                 validateAndEnrich(cashflowBuilder);
-                List<Cashflow> cashflows = cashflowVersionService.createNonFirstVersionCF(lastProcessedCashflow, cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
+                List<Cashflow> cashflows = cashflowVersionManager.createNonFirstVersionCF(lastProcessedCashflow, cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
             }
             case AlreadyProcessed _ -> {
                 log.info("Received duplicate cashflow[foCfID: {}, foCfVer: {}]", foCashflowID, foCashflowVersion);
                 return;
             }
             case LastCashflowIsCancelled(var lpcf) -> {
-                log.info("Last processed cashflow[cfID: {}, cfVer: {}] is cancelled. No further amendment is permitted. Rejecting current cashflow[foCfID: {}, foCfVer: {}] as {}", lpcf.cashflowID(), lpcf.cashflowVersion(), foCashflowID, foCashflowVersion, ExceptionConstants.ExceptionCategory.UNRECOVERABLE);
+                log.info("Last processed cashflow[cfID: {}, cfVer: {}] is cancelled. No further amendment is permitted. Rejecting cashflow[foCfID: {}, foCfVer: {}] as {}", lpcf.cashflowID(), lpcf.cashflowVersion(), foCashflowID, foCashflowVersion, ExceptionCategory.UNRECOVERABLE);
                 return;
             }
         }
@@ -73,6 +77,6 @@ public class CashflowService {
     }
 
     private void saveAudit(long foCashflowID, int foCashflowVersion, long tradeID, int tradeVersion, TradeType tradeType) {
-        txrw.executeWithoutResult(ts -> cashflowDao.saveCFReceiveAudit(foCashflowID, foCashflowVersion, tradeID, tradeVersion, tradeType));
+        txrw.executeWithoutResult(ts -> cashflowStore.saveCFReceiveAudit(foCashflowID, foCashflowVersion, tradeID, tradeVersion, tradeType));
     }
 }

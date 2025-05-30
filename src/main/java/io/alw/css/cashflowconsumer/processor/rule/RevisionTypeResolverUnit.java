@@ -1,4 +1,4 @@
-package io.alw.css.cashflowconsumer.mapper.rule;
+package io.alw.css.cashflowconsumer.processor.rule;
 
 import org.drools.ruleunits.api.DataSource;
 import org.drools.ruleunits.api.DataStore;

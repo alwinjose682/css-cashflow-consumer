@@ -1,4 +1,4 @@
-package io.alw.css.cashflowconsumer.mapper.rule;
+package io.alw.css.cashflowconsumer.processor.rule;
 
 import io.alw.css.domain.cashflow.*;
 
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static io.alw.css.cashflowconsumer.mapper.rule.RevisionTypeResolverTest.CashflowOrder.*;
+import static io.alw.css.cashflowconsumer.processor.rule.RevisionTypeResolverTest.CashflowOrder.*;
 import static io.alw.css.domain.cashflow.TradeType.*;
 import static io.alw.css.domain.cashflow.RevisionType.*;
 import static io.alw.css.domain.cashflow.TradeEventAction.*;

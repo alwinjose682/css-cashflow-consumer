@@ -1,5 +1,6 @@
 package io.alw.css.cashflowconsumer.model.jpa;
 
+import io.alw.css.domain.cashflow.RevisionType;
 import io.alw.css.domain.common.PaymentConstants;
 import io.alw.css.domain.common.YesNo;
 import jakarta.persistence.*;
@@ -15,14 +16,15 @@ public class CashflowEntity {
 
     // CSS Cashflow Version Data
     @EmbeddedId
-    CashflowEntityPK id;
+    CashflowEntityPK cashflowEntityPK;
 
     @Column(name = "LATEST", nullable = false, length = 1)
     @Enumerated(EnumType.STRING)
     YesNo latest; // The latest field is intended to be used only by CSS Services that synchronizes Cashflow processing by acquiring a lock
 
     @Column(name = "REVISION_TYPE", nullable = false)
-    String revisionType;
+    @Enumerated(EnumType.STRING)
+    RevisionType revisionType;
 
     // Fo Cashflow Version Data
     @Column(name = "FO_CASHFLOW_ID", nullable = false)
