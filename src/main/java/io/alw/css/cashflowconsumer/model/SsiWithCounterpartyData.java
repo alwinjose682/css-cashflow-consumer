@@ -2,7 +2,7 @@ package io.alw.css.cashflowconsumer.model;
 
 import io.alw.css.domain.cashflow.TradeType;
 
-public record CounterpartyAndSsiDetails(
+public record SsiWithCounterpartyData(
         String counterpartyCode,
         int counterpartyVersion,
         boolean internal,

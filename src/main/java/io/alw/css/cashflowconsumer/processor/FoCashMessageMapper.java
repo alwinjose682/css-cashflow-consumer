@@ -11,9 +11,8 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.Locale;
 
-import static io.alw.css.domain.exception.ExceptionSubCategory.INVALID_FO_VERSION;
-import static io.alw.css.domain.exception.ExceptionSubCategory.INVALID_MESSAGE;
-
+import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.INVALID_FO_VERSION;
+import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.INVALID_MESSAGE;
 
 /// @see #mapToDomain(FoCashMessage)
 public final class FoCashMessageMapper {
@@ -62,7 +61,7 @@ public final class FoCashMessageMapper {
     private static int doBasicValidationOfFoCashflowVersion(FoCashMessage foMsg) {
         int foCashflowVersion = foMsg.cashflowVersion();
         if (foCashflowVersion < CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
-            throw new CategorizedRuntimeException("fields[foCashflowVersion] is invalid", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_FO_VERSION, foMsg)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[foCashflowVersion] is invalid", new ExceptionSubCategory(INVALID_FO_VERSION, foMsg));
         }
         return foCashflowVersion;
     }
@@ -73,7 +72,7 @@ public final class FoCashMessageMapper {
             rate = rate.setScale(PaymentConstants.RATE_SCALE, RoundingMode.HALF_DOWN);
             return rate;
         } else {
-            throw new CategorizedRuntimeException("fields[rate] is null", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, foMsg)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[rate] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
     }
 
@@ -83,7 +82,7 @@ public final class FoCashMessageMapper {
             amount = amount.setScale(PaymentConstants.AMOUNT_SCALE, RoundingMode.HALF_DOWN);
             return foMsg.payOrReceive() == PayOrReceive.PAY ? amount.negate() : amount;
         } else {
-            throw new CategorizedRuntimeException("fields[amount] is null", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, foMsg)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[amount] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
     }
 
@@ -94,7 +93,7 @@ public final class FoCashMessageMapper {
     private static TransactionType getTransactionType(FoCashMessage foMsg) {
         TransactionType transactionType = foMsg.transactionType();
         if (transactionType == null) {
-            throw new CategorizedRuntimeException("fields[transactionType] is null", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, foMsg)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[transactionType] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
         return foMsg.transactionType();
     }
@@ -102,7 +101,7 @@ public final class FoCashMessageMapper {
     private static TradeType getTradeType(FoCashMessage foMsg) {
         TradeType tradeType = foMsg.tradeType();
         if (tradeType == null) {
-            throw new CategorizedRuntimeException("fields[tradeType] is null", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, foMsg)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeType] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
         return tradeType;
     }

@@ -2,7 +2,6 @@ package io.alw.css.cashflowconsumer.config;
 
 import io.alw.css.cashflowconsumer.model.properties.SuppressionConfig;
 import io.alw.css.cashflowconsumer.processor.CashflowEnricher;
-import io.alw.css.cashflowconsumer.processor.CashflowValidator;
 import io.alw.css.cashflowconsumer.processor.CashflowVersionManager;
 import io.alw.css.cashflowconsumer.repository.CashflowRepository;
 import io.alw.css.cashflowconsumer.repository.CashflowStore;
@@ -35,11 +34,6 @@ public class AppConfig {
     @Bean
     public CashflowEnricher cashflowEnricher(SuppressionConfig suppressionConfig, CacheService cacheService) {
         return new CashflowEnricher(suppressionConfig, cacheService);
-    }
-
-    @Bean
-    public CashflowValidator cashflowValidator() {
-        return new CashflowValidator();
     }
 
     @Bean

@@ -20,7 +20,6 @@ public final class CashflowStore {
         this.cashflowRepository = cashflowRepository;
     }
 
-
     public long getNewCashflowID() {
         return (long) em.createNativeQuery("select CSS_SERVICES.cashflow_seq.nextval from dual").getSingleResult();
     }

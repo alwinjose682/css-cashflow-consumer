@@ -88,11 +88,8 @@ public class CashflowEntity {
     @Column(name = "SSI_ID")
     String ssiID;
 
-    @Column(name = "PAYMENT_SUPPRESSED", nullable = false, length = 1)
-    @Enumerated(EnumType.STRING)
-    YesNo paymentSuppressed;
-
     @Column(name = "PAYMENT_SUPPRESSION_CATEGORY")
+    @Enumerated(EnumType.STRING)
     String paymentSuppressionCategory;
 
     // Cashflow Entry Audit
@@ -102,6 +99,6 @@ public class CashflowEntity {
     @Column(name = "INPUT_BY_USER_ID")
     String inputByUserID;
 
-    @Column(name = "RECEIVED_DATE_TIME")
+    @Column(name = "INPUT_DATE_TIME")
     LocalDateTime inputDateTime;
 }

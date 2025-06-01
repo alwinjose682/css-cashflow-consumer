@@ -7,7 +7,6 @@ import io.alw.css.dbshared.tx.TXRO;
 import io.alw.css.dbshared.tx.TXRW;
 import io.alw.css.domain.cashflow.*;
 import io.alw.css.domain.exception.CategorizedRuntimeException;
-import io.alw.css.domain.exception.CssException;
 import io.alw.css.domain.exception.ExceptionSubCategory;
 
 import java.math.BigDecimal;
@@ -38,23 +37,6 @@ public class CashflowVersionManager {
         this.cashflowStore = cashflowStore;
         this.txrw = txrw;
         this.txro = txro;
-    }
-
-    public sealed interface CFProcessedCheckOutcome {
-        AlreadyProcessed ALREADY_PROCESSED = new AlreadyProcessed();
-        FirstVersion FIRST_VERSION = new FirstVersion();
-
-        record AlreadyProcessed() implements CFProcessedCheckOutcome {
-        }
-
-        record FirstVersion() implements CFProcessedCheckOutcome {
-        }
-
-        record NonFirstVersion(Cashflow lastProcessedCashflow) implements CFProcessedCheckOutcome {
-        }
-
-        record LastCashflowIsCancelled(Cashflow lastProcessedCashflow) implements CFProcessedCheckOutcome {
-        }
     }
 
     /// Checks if the cashflow is [CFProcessedCheckOutcome.FirstVersion] or [CFProcessedCheckOutcome.NonFirstVersion] or [CFProcessedCheckOutcome.AlreadyProcessed]
@@ -101,7 +83,7 @@ public class CashflowVersionManager {
         long foCashflowVersion = cashflowBuilder.foCashflowVersion();
         RevisionType revisionType = cashflowBuilder.revisionType();
         if (!(foCashflowVersion == CashflowConstants.FO_CASHFLOW_FIRST_VERSION && revisionType == RevisionType.NEW)) {
-            throw new CategorizedRuntimeException("Not first version or incorrect revisionType determination", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(NOT_FIRST_VERSION, null)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version or incorrect revisionType determination", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
         }
 
 //        long cashflowID = cashflowStore.getNewCashflowID();
@@ -120,13 +102,12 @@ public class CashflowVersionManager {
 
         long foCashflowVersion = cashflowBuilder.foCashflowVersion();
         if (foCashflowVersion <= CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
-            throw new CategorizedRuntimeException("Not first version", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(NOT_FIRST_VERSION, null)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
         }
 
         RevisionType revisionType = cashflowBuilder.revisionType();
         return switch (revisionType) {
-            case NEW ->
-                    throw new CategorizedRuntimeException("Incorrect RevisionType determination as NEW", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INCORRECT_CF_REVISION_TYPE, null)));
+            case NEW -> throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Incorrect RevisionType determination as NEW", new ExceptionSubCategory(INCORRECT_CF_REVISION_TYPE, null));
             case COR -> createAmendCFAndOffsetForPrevCF(previousCashflow, cashflowBuilder);
             case CAN -> {
                 Cashflow cancelCashflow = createCancelCF(previousCashflow, cashflowBuilder);
@@ -145,9 +126,9 @@ public class CashflowVersionManager {
             if (lpcfCashflowTradeID == tradeID && lpcfTradeVersion == tradeVersion) {
                 return true;
             } else if (lpcfCashflowTradeID != tradeID) { // It is valid to have same tradeID but different tradeVersion
-                throw new CategorizedRuntimeException("TradeID does not match tradeID of last processed processed live cashflow", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(TRADEID_MISMATCH, null)));
+                throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("TradeID does not match tradeID of last processed processed live cashflow", new ExceptionSubCategory(TRADEID_MISMATCH, null));
             } else {//if (lpcfTradeVersion != tradeVersion) {
-                throw new CategorizedRuntimeException("TradeVersion is NOT expected to be same when last processed live cashflow's TradeID & ver and CfID & ver matches with the current FO message", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(TRADEID_MISMATCH, null)));
+                throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("TradeVersion is NOT expected to be same when last processed live cashflow's TradeID & ver and CfID & ver matches with the current FO message", new ExceptionSubCategory(TRADEID_MISMATCH, null));
             }
         } else {
             return false;
@@ -166,10 +147,10 @@ public class CashflowVersionManager {
     private static void computeAndSetRevisionType(CashflowBuilder cashflowBuilder, TradeEventType tradeEventType, TradeEventAction tradeEventAction, TradeType tradeType) {
         boolean firstCashflow = CashflowUtil.isFirstFoCashflowVersion(cashflowBuilder.foCashflowVersion());
         if (tradeType == null || tradeEventType == null || tradeEventAction == null) {
-            throw new CategorizedRuntimeException("fields[tradeType,tradeEventType,tradeEventAction] are null", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, null)));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeType,tradeEventType,tradeEventAction] are null", new ExceptionSubCategory(INVALID_MESSAGE, null));
         }
         Optional<RevisionType> result = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
-        RevisionType revisionType = result.orElseThrow(() -> new CategorizedRuntimeException("Unable to determine RevisionType from the given combination of inputs", CssException.TECHNICAL_UNRECOVERABLE(new ExceptionSubCategory(INVALID_MESSAGE, null))));
+        RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(INVALID_MESSAGE, null)));
         cashflowBuilder.revisionType(revisionType);
     }
 

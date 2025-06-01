@@ -1,16 +1,18 @@
 package io.alw.css.cashflowconsumer.processor;
 
-import io.alw.css.cashflowconsumer.model.CounterpartyAndSsiDetails;
+import io.alw.css.cashflowconsumer.model.SsiWithCounterpartyData;
 import io.alw.css.cashflowconsumer.model.NostroDetails;
 import io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType;
 import io.alw.css.cashflowconsumer.model.properties.SuppressionConfig;
 import io.alw.css.cashflowconsumer.service.CacheService;
-import io.alw.css.commonlib.*;
+import io.alw.css.domain.exception.CategorizedRuntimeException;
+import io.alw.css.resultapi.*;
 import io.alw.css.domain.cashflow.CashflowBuilder;
 import io.alw.css.domain.cashflow.TradeType;
 import io.alw.css.domain.common.PaymentSuppressionCategory;
-import io.alw.css.domain.exception.CssException;
 import io.alw.css.domain.exception.ExceptionSubCategory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -21,6 +23,7 @@ import static io.alw.css.domain.cashflow.TransactionType.*;
 ///
 /// @see
 public class CashflowEnricher {
+    private final static Logger log = LoggerFactory.getLogger(CashflowEnricher.class);
     private final SuppressionConfig suppressionConfig;
     private final CacheService cacheService;
 
@@ -29,50 +32,71 @@ public class CashflowEnricher {
         this.cacheService = cacheService;
     }
 
-    public Result<?> validateAndEnrich(CashflowBuilder builder) {
+    public void validateAndEnrich(CashflowBuilder builder) {
         String currCode = builder.currCode();
         String counterpartyCode = builder.counterpartyCode();
         TradeType tradeType = builder.tradeType();
         String entityCode = builder.entityCode();
 
-        CounterpartyAndSsiDetails cpAndSsiDetails = cacheService.getCounterpartyAndSsiDetails(counterpartyCode, currCode, tradeType, true);
+        SsiWithCounterpartyData ssiWithCpData = cacheService.getPrimarySsiWithCounterpartyData(counterpartyCode, currCode, tradeType);
         NostroDetails nostroDetails = cacheService.getNostroDetails(entityCode, currCode, counterpartyCode);
 
-        return Result.of(() -> enrichWithSsiID(builder, cpAndSsiDetails, counterpartyCode, currCode, tradeType))
-                .andThen(() -> enrichWithNostroID(nostroDetails))
-                .accept(_ -> setInternalValue(builder))
-                .accept(_ -> setPaymentSuppressionValue(builder));
+        validateEntityAndCurrCode(builder);
+        enrichWithSsiID(builder, ssiWithCpData);
+        enrichWithNostroID(builder, nostroDetails);
+        setInternalValue(builder, ssiWithCpData);
+        setPaymentSuppressionValue(builder);
     }
 
-    private Result<?> enrichWithNostroID(NostroDetails nostroDetails) {
+    public Result<String> validateEntityAndCurrCode(CashflowBuilder builder) {
+        String entityCode = builder.entityCode();
+        String currCode = builder.currCode();
+        boolean entityActive = cacheService.isEntityActive(entityCode);
+        boolean currencyActive = cacheService.isCurrencyActive(currCode);
+        if (!entityActive) {
+            throw CategorizedRuntimeException.BUSINESS_RECOVERABLE("Entity is inactive", new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.INACTIVE_ENTITY, null));
+        } else if (!currencyActive) {
+            throw CategorizedRuntimeException.BUSINESS_RECOVERABLE("Currency is inactive", new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.INACTIVE_CURRENCY, null));
+        }
 
+        return Result.SUCCESS;
     }
 
-    private Result<?> enrichWithSsiID(CashflowBuilder builder, CounterpartyAndSsiDetails cpAndSsiDetails, String counterpartyCode, String currCode, TradeType tradeType) {
-//        return new Success();
+    public void enrichWithNostroID(CashflowBuilder builder, NostroDetails nostroDetails) {
+        String entityCode = builder.entityCode();
+        String currCode = builder.currCode();
 
-        return switch (cpAndSsiDetails) {
-            case null -> {
-                var msg = "No primary SSI found for Counterparty: " + counterpartyCode + ", Currency: " + currCode + ", TradeType: " + tradeType;
-                yield new Failure(CssException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.MISSING_SSI, cpAndSsiDetails)));
+        if (nostroDetails != null) {
+            var primaryNostro = nostroDetails.primaryNostro();
+            var overridableNostro = nostroDetails.overridableNostro();
+            if (overridableNostro != null) {
+                log.debug("Overriding primary nostro with secondary nostro configured in counterparty profile. CounterpartyCode: {}, CurrCode: {}, EntityCode: {}", overridableNostro.counterpartyCode(), overridableNostro.currCode(), overridableNostro.entityCode());
+                builder.nostroID(overridableNostro.nostroID());
+                return;
+            } else if (primaryNostro != null) {
+                builder.nostroID(primaryNostro.nostroID());
+                return;
             }
-            case CounterpartyAndSsiDetails sd when !sd.activeCounterparty() -> {
-                var msg = "Counterparty: " + counterpartyCode + " is inactive";
-                yield new Failure(CssException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.INACTIVE_COUNTERPARTY, cpAndSsiDetails)));
-            }
-            case CounterpartyAndSsiDetails sd when !sd.activeSsi() -> {
-                var msg = "Primary SSI: " + sd.ssiId() + "[ssVer: " + sd.ssiVersion() + "] is inactive";
-                yield new Failure(CssException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.INACTIVE_COUNTERPARTY, cpAndSsiDetails)));
-            }
+        }
 
-            case CounterpartyAndSsiDetails sd -> {
-                builder.ssiID(sd.ssiId());
-                yield new Success<>("Success");
-            }
-        };
+        var msg = "Nostro is inactive or does not exist. EntityCode: " + entityCode + ", CurrCode: " + currCode;
+        throw CategorizedRuntimeException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.MISSING_NOSTRO, null));
     }
 
-    private void setPaymentSuppressionValue(CashflowBuilder builder) {
+    public void enrichWithSsiID(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
+        String counterpartyCode = builder.counterpartyCode();
+        String currCode = builder.currCode();
+        TradeType tradeType = builder.tradeType();
+
+        if (ssiWithCpData == null) {
+            var msg = "Primary SSI or Counterparty is inactive or does not exist. CounterpartyCode: " + counterpartyCode + ", CurrCode: " + currCode + ", TradeType: " + tradeType;
+            throw CategorizedRuntimeException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(CashflowConsumerExceptionSubCategoryType.MISSING_SSI, null));
+        } else {
+            builder.ssiID(ssiWithCpData.ssiId());
+        }
+    }
+
+    public void setPaymentSuppressionValue(CashflowBuilder builder) {
         String cfCurr = builder.currCode();
         BigDecimal cfAmt = builder.amount();
 
@@ -92,20 +116,16 @@ public class CashflowEnricher {
             }
         }
 
-        builder.paymentSuppressed(false);
-        builder.paymentSuppressionCategory(null);
+        builder.paymentSuppressionCategory(PaymentSuppressionCategory.NONE);
     }
 
-    private void setInternalValue(CashflowBuilder builder) {
-//        TODO: Change this internal trade identification logic to base upon counterpartyCode is internal
+    public void setInternalValue(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
         boolean internalTransactionType = switch (builder.transactionType()) {
             case INTER_BOOK, INTER_BRANCH, INTER_COMPANY -> true;
             case CLIENT, MARKET, CORPORATE_ACTION -> false;
         };
 
-        boolean internalCounterparty = cacheService.;
-
+        boolean internalCounterparty = ssiWithCpData.internal();
         builder.internal(internalTransactionType && internalCounterparty);
     }
-
 }
