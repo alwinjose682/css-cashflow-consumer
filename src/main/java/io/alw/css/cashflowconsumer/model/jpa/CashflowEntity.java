@@ -3,6 +3,7 @@ package io.alw.css.cashflowconsumer.model.jpa;
 import io.alw.css.domain.cashflow.RevisionType;
 import io.alw.css.domain.common.InputBy;
 import io.alw.css.domain.common.PaymentConstants;
+import io.alw.css.domain.common.PaymentSuppressionCategory;
 import io.alw.css.domain.common.YesNo;
 import jakarta.persistence.*;
 
@@ -91,7 +92,7 @@ public class CashflowEntity {
 
     @Column(name = "PAYMENT_SUPPRESSION_CATEGORY")
     @Enumerated(EnumType.STRING)
-    String paymentSuppressionCategory;
+    PaymentSuppressionCategory paymentSuppressionCategory;
 
     // Cashflow Entry Audit
     @Column(name = "INPUT_BY", nullable = false)
@@ -280,11 +281,11 @@ public class CashflowEntity {
         this.ssiID = ssiID;
     }
 
-    public String getPaymentSuppressionCategory() {
+    public PaymentSuppressionCategory getPaymentSuppressionCategory() {
         return paymentSuppressionCategory;
     }
 
-    public void setPaymentSuppressionCategory(String paymentSuppressionCategory) {
+    public void setPaymentSuppressionCategory(PaymentSuppressionCategory paymentSuppressionCategory) {
         this.paymentSuppressionCategory = paymentSuppressionCategory;
     }
 

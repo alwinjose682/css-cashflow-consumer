@@ -22,7 +22,7 @@ public interface CashflowRepository extends JpaRepository<CashflowEntity, Cashfl
     @Query(value = """
             update CashflowEntity cf
             set cf.latest = 'N'
-            where cf.cashflowID = :cashflowID and cf.cashflowVersion = :cashflowVersion and cf.latest = 'Y'
+            where cf.cashflowEntityPK.cashflowID = :cashflowID and cf.cashflowEntityPK.cashflowVersion = :cashflowVersion and cf.latest = 'Y'
             """)
     int updateLastProcessedCashflowToNonLatest(@Param("cashflowID") long cashflowId, @Param("cashflowVersion") int cashflowVersion);
 }
