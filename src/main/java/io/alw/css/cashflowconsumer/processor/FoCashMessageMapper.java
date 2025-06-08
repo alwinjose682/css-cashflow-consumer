@@ -1,20 +1,24 @@
 package io.alw.css.cashflowconsumer.processor;
 
+import io.alw.css.cashflowconsumer.util.DateUtil;
 import io.alw.css.domain.cashflow.*;
 import io.alw.css.domain.cashflow.CashflowBuilder;
 import io.alw.css.domain.common.InputBy;
 import io.alw.css.domain.common.PaymentConstants;
 import io.alw.css.domain.exception.*;
+import io.alw.css.serialization.cashflow.FoCashMessageAvro;
+import io.alw.css.serialization.cashflow.TradeLinkAvro;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Locale;
+import java.time.format.DateTimeParseException;
+import java.util.List;
 
-import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.INVALID_FO_VERSION;
-import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.INVALID_MESSAGE;
+import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType.*;
 
-/// @see #mapToDomain(FoCashMessage)
+/// @see #mapToDomain(FoCashMessageAvro)
 public final class FoCashMessageMapper {
 
     /// Maps below sections of [FoCashMessage] to CSS [Cashflow]
@@ -28,81 +32,130 @@ public final class FoCashMessageMapper {
     /// - For [Cashflow#amount], negates the amount to negative if [FoCashMessage#payOrReceive] is PAY and sets the precision to [PaymentConstants#AMOUNT_SCALE]
     ///
     /// @return CashflowBuilder
-    public static CashflowBuilder mapToDomain(FoCashMessage foMsg) {
+    public static CashflowBuilder mapToDomain(FoCashMessageAvro foMsg) {
         CashflowBuilder builder = CashflowBuilder.builder();
         return builder
                 // Cashflow Entry Audit
                 .inputDateTime(LocalDateTime.now())
                 .inputBy(InputBy.CSS_SYS)
-                .inputByUserID(InputBy.CSS_SYS.value())
+                .inputByUserID(null)
 
                 // Fo Cashflow Version Data
-                .foCashflowID(foMsg.cashflowID())
+                .foCashflowID(foMsg.getCashflowID())
                 .foCashflowVersion(doBasicValidationOfFoCashflowVersion(foMsg))
-                .tradeID(foMsg.tradeID())
-                .tradeVersion(foMsg.tradeVersion())
+                .tradeID(foMsg.getTradeID())
+                .tradeVersion(foMsg.getTradeVersion())
                 // Trade and Cashflow Data
-                .tradeType(getTradeType(foMsg))
-                .bookCode(foMsg.bookCode())
-                .counterBookCode(getCounterBookID(foMsg))
-                .secondaryLedgerAccount(foMsg.secondaryLedgerAccount())
-                .transactionType(getTransactionType(foMsg))
-                .rate(getRate(foMsg))
-                .valueDate(foMsg.valueDate())
-                .tradeLinks(foMsg.tradeLinks())
+                .tradeType(mapTradeType(foMsg))
+                .bookCode(foMsg.getBookCode())
+                .counterBookCode(mapTransactionTypeAndGetCounterBookID(builder, foMsg))
+                .secondaryLedgerAccount(foMsg.getSecondaryLedgerAccount())
+                .rate(formatRate(foMsg))
+                .valueDate(mapValueDate(foMsg))
+                .tradeLinks(mapTradeLinks(foMsg))
 
                 // ObligationData
-                .entityCode(foMsg.entityCode())
-                .counterpartyCode(foMsg.counterpartyCode())
-                .amount(getAmount(foMsg))
-                .currCode(foMsg.currCode().toUpperCase(Locale.ROOT));
+                .entityCode(foMsg.getEntityCode())
+                .counterpartyCode(foMsg.getCounterpartyCode())
+                .amount(formatAmount(foMsg))
+                .currCode(foMsg.getCurrCode().toUpperCase());
     }
 
-    private static int doBasicValidationOfFoCashflowVersion(FoCashMessage foMsg) {
-        int foCashflowVersion = foMsg.cashflowVersion();
+    private static List<TradeLink> mapTradeLinks(FoCashMessageAvro foMsg) {
+        List<TradeLinkAvro> tradeLinks = foMsg.getTradeLinks();
+        if (tradeLinks != null) {
+            return tradeLinks.stream().map(tla -> new TradeLink(tla.getLinkType(), tla.getRelatedReference())).toList();
+        } else {
+            return null;
+        }
+    }
+
+    private static LocalDate mapValueDate(FoCashMessageAvro foMsg) {
+        String valueDate = foMsg.getValueDate();
+        try {
+            return DateUtil.formatValueDate(valueDate);
+        } catch (DateTimeParseException e) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[valueDate] is invalid", new ExceptionSubCategory(INVALID_VALUE_DATE, foMsg));
+        }
+    }
+
+    private static int doBasicValidationOfFoCashflowVersion(FoCashMessageAvro foMsg) {
+        int foCashflowVersion = foMsg.getCashflowVersion();
         if (foCashflowVersion < CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[foCashflowVersion] is invalid", new ExceptionSubCategory(INVALID_FO_VERSION, foMsg));
         }
         return foCashflowVersion;
     }
 
-    private static BigDecimal getRate(FoCashMessage foMsg) {
-        BigDecimal rate = foMsg.rate();
+    private static BigDecimal formatRate(FoCashMessageAvro foMsg) {
+        BigDecimal rate = foMsg.getRate();
         if (rate != null) {
             rate = rate.setScale(PaymentConstants.RATE_SCALE, RoundingMode.HALF_DOWN);
             return rate;
         } else {
-            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[rate] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[rate] is null", new ExceptionSubCategory(INVALID_RATE, foMsg));
         }
     }
 
-    private static BigDecimal getAmount(FoCashMessage foMsg) {
-        BigDecimal amount = foMsg.amount();
+    private static BigDecimal formatAmount(FoCashMessageAvro foMsg) {
+        BigDecimal amount = foMsg.getAmount();
         if (amount != null) {
             amount = amount.setScale(PaymentConstants.AMOUNT_SCALE, RoundingMode.HALF_DOWN);
-            return foMsg.payOrReceive() == PayOrReceive.PAY ? amount.negate() : amount;
+            return PayOrReceive.valueOf(foMsg.getPayOrReceive().name()) == PayOrReceive.PAY ? amount.negate() : amount;
         } else {
-            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[amount] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[amount] is null", new ExceptionSubCategory(INVALID_AMOUNT, foMsg));
         }
     }
 
-    private static String getCounterBookID(FoCashMessage foMsg) {
-        return foMsg.transactionType() == TransactionType.INTER_BOOK ? foMsg.counterBookCode() : null;
-    }
-
-    private static TransactionType getTransactionType(FoCashMessage foMsg) {
-        TransactionType transactionType = foMsg.transactionType();
-        if (transactionType == null) {
+    private static String mapTransactionTypeAndGetCounterBookID(CashflowBuilder builder, FoCashMessageAvro foMsg) {
+        if (foMsg.getTransactionType() == null) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[transactionType] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
-        return foMsg.transactionType();
+
+        final TransactionType transactionType;
+        try {
+            transactionType = TransactionType.valueOf(foMsg.getTransactionType());
+            builder.transactionType(transactionType);
+        } catch (IllegalArgumentException e) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[transactionType] is invalid", new ExceptionSubCategory(INVALID_TRANSACTION_TYPE, foMsg));
+        }
+
+        return transactionType == TransactionType.INTER_BOOK ? foMsg.getCounterBookCode() : null;
     }
 
-    private static TradeType getTradeType(FoCashMessage foMsg) {
-        TradeType tradeType = foMsg.tradeType();
+    private static TradeType mapTradeType(FoCashMessageAvro foMsg) {
+        String tradeType = foMsg.getTradeType();
         if (tradeType == null) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeType] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
         }
-        return tradeType;
+        try {
+            return TradeType.valueOf(tradeType);
+        } catch (IllegalArgumentException e) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeType] is invalid", new ExceptionSubCategory(INVALID_TRADE_TYPE, foMsg));
+        }
+    }
+
+    public static TradeEventType mapTradeEventType(FoCashMessageAvro foMsg) {
+        String tradeEventType = foMsg.getTradeEventType();
+        if (tradeEventType == null) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeEventType] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
+        }
+        try {
+            return TradeEventType.valueOf(tradeEventType);
+        } catch (IllegalArgumentException e) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeEventType] is invalid", new ExceptionSubCategory(INVALID_TRADE_EVENT_TYPE, foMsg));
+        }
+    }
+
+    public static TradeEventAction mapTradeEventAction(FoCashMessageAvro foMsg) {
+        io.alw.css.serialization.cashflow.TradeEventAction tradeEventAction = foMsg.getTradeEventAction();
+        if (tradeEventAction == null) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeEventAction] is null", new ExceptionSubCategory(INVALID_MESSAGE, foMsg));
+        }
+        try {
+            return TradeEventAction.valueOf(tradeEventAction.name());
+        } catch (IllegalArgumentException e) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeEventAction] is invalid", new ExceptionSubCategory(INVALID_TRADE_EVENT_ACTION, foMsg));
+        }
     }
 }

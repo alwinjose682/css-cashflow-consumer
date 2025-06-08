@@ -1,6 +1,7 @@
 package io.alw.css.cashflowconsumer.model.jpa;
 
 import io.alw.css.domain.cashflow.RevisionType;
+import io.alw.css.domain.common.InputBy;
 import io.alw.css.domain.common.PaymentConstants;
 import io.alw.css.domain.common.YesNo;
 import jakarta.persistence.*;
@@ -94,11 +95,220 @@ public class CashflowEntity {
 
     // Cashflow Entry Audit
     @Column(name = "INPUT_BY", nullable = false)
-    String inputBy;
+    @Enumerated(EnumType.STRING)
+    InputBy inputBy;
 
     @Column(name = "INPUT_BY_USER_ID")
     String inputByUserID;
 
     @Column(name = "INPUT_DATE_TIME")
     LocalDateTime inputDateTime;
+
+    public CashflowEntityPK getCashflowEntityPK() {
+        return cashflowEntityPK;
+    }
+
+    public void setCashflowEntityPK(CashflowEntityPK cashflowEntityPK) {
+        this.cashflowEntityPK = cashflowEntityPK;
+    }
+
+    public YesNo getLatest() {
+        return latest;
+    }
+
+    public void setLatest(YesNo latest) {
+        this.latest = latest;
+    }
+
+    public RevisionType getRevisionType() {
+        return revisionType;
+    }
+
+    public void setRevisionType(RevisionType revisionType) {
+        this.revisionType = revisionType;
+    }
+
+    public Long getFoCashflowID() {
+        return foCashflowID;
+    }
+
+    public void setFoCashflowID(Long foCashflowID) {
+        this.foCashflowID = foCashflowID;
+    }
+
+    public Integer getFoCashflowVersion() {
+        return foCashflowVersion;
+    }
+
+    public void setFoCashflowVersion(Integer foCashflowVersion) {
+        this.foCashflowVersion = foCashflowVersion;
+    }
+
+    public Long getTradeID() {
+        return tradeID;
+    }
+
+    public void setTradeID(Long tradeID) {
+        this.tradeID = tradeID;
+    }
+
+    public Integer getTradeVersion() {
+        return tradeVersion;
+    }
+
+    public void setTradeVersion(Integer tradeVersion) {
+        this.tradeVersion = tradeVersion;
+    }
+
+    public String getTradeType() {
+        return tradeType;
+    }
+
+    public void setTradeType(String tradeType) {
+        this.tradeType = tradeType;
+    }
+
+    public String getBookCode() {
+        return bookCode;
+    }
+
+    public void setBookCode(String bookCode) {
+        this.bookCode = bookCode;
+    }
+
+    public String getCounterBookCode() {
+        return counterBookCode;
+    }
+
+    public void setCounterBookCode(String counterBookCode) {
+        this.counterBookCode = counterBookCode;
+    }
+
+    public String getSecondaryLedgerAccount() {
+        return secondaryLedgerAccount;
+    }
+
+    public void setSecondaryLedgerAccount(String secondaryLedgerAccount) {
+        this.secondaryLedgerAccount = secondaryLedgerAccount;
+    }
+
+    public String getTransactionType() {
+        return transactionType;
+    }
+
+    public void setTransactionType(String transactionType) {
+        this.transactionType = transactionType;
+    }
+
+    public BigDecimal getRate() {
+        return rate;
+    }
+
+    public void setRate(BigDecimal rate) {
+        this.rate = rate;
+    }
+
+    public LocalDate getValueDate() {
+        return valueDate;
+    }
+
+    public void setValueDate(LocalDate valueDate) {
+        this.valueDate = valueDate;
+    }
+
+    public List<TradeLinkEntity> getTradeLinks() {
+        return tradeLinks;
+    }
+
+    public void setTradeLinks(List<TradeLinkEntity> tradeLinks) {
+        this.tradeLinks = tradeLinks;
+    }
+
+    public String getEntityCode() {
+        return entityCode;
+    }
+
+    public void setEntityCode(String entityCode) {
+        this.entityCode = entityCode;
+    }
+
+    public String getCounterpartyCode() {
+        return counterpartyCode;
+    }
+
+    public void setCounterpartyCode(String counterpartyCode) {
+        this.counterpartyCode = counterpartyCode;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public String getCurrCode() {
+        return currCode;
+    }
+
+    public void setCurrCode(String currCode) {
+        this.currCode = currCode;
+    }
+
+    public YesNo getInternal() {
+        return internal;
+    }
+
+    public void setInternal(YesNo internal) {
+        this.internal = internal;
+    }
+
+    public String getNostroID() {
+        return nostroID;
+    }
+
+    public void setNostroID(String nostroID) {
+        this.nostroID = nostroID;
+    }
+
+    public String getSsiID() {
+        return ssiID;
+    }
+
+    public void setSsiID(String ssiID) {
+        this.ssiID = ssiID;
+    }
+
+    public String getPaymentSuppressionCategory() {
+        return paymentSuppressionCategory;
+    }
+
+    public void setPaymentSuppressionCategory(String paymentSuppressionCategory) {
+        this.paymentSuppressionCategory = paymentSuppressionCategory;
+    }
+
+    public InputBy getInputBy() {
+        return inputBy;
+    }
+
+    public void setInputBy(InputBy inputBy) {
+        this.inputBy = inputBy;
+    }
+
+    public String getInputByUserID() {
+        return inputByUserID;
+    }
+
+    public void setInputByUserID(String inputByUserID) {
+        this.inputByUserID = inputByUserID;
+    }
+
+    public LocalDateTime getInputDateTime() {
+        return inputDateTime;
+    }
+
+    public void setInputDateTime(LocalDateTime inputDateTime) {
+        this.inputDateTime = inputDateTime;
+    }
 }

@@ -8,12 +8,13 @@ import io.alw.css.dbshared.tx.TXRW;
 import io.alw.css.domain.cashflow.*;
 import io.alw.css.domain.exception.CategorizedRuntimeException;
 import io.alw.css.domain.exception.ExceptionSubCategory;
+import io.alw.css.serialization.cashflow.FoCashMessageAvro;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.*;
+import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType.*;
 
 /// Does the following:
 /// - Determines whether the new cashflow is firstVersion, nonFirstVersion or alreadyProcessed
@@ -61,7 +62,7 @@ public class CashflowVersionManager {
                 return CFProcessedCheckOutcome.ALREADY_PROCESSED;
             } else {
                 if (isCashflowCancelled(lastProcessedCashflow)) {
-                    return new CFProcessedCheckOutcome.LastCashflowIsCancelled(lastProcessedCashflow);
+                    return new CFProcessedCheckOutcome.LastCashflowIsCancelled();
                 }
                 return new CFProcessedCheckOutcome.NonFirstVersion(lastProcessedCashflow);
             }
@@ -77,9 +78,7 @@ public class CashflowVersionManager {
     /// @implNote This method calls a dao method that does select on a DB sequence. Hence this method must be called in RW transaction(which is so currently)
     // TODO: When transaction is readOnly for JpaTransactionManager, does spring cause libs to acquire a RO physical connection or just optimizes JPA dirty checking etc? AskVlad
 //    @Transactional
-    public Cashflow createFirstVersionCF(CashflowBuilder cashflowBuilder, TradeEventType tradeEventType, TradeEventAction tradeEventAction, TradeType tradeType) {
-        computeAndSetRevisionType(cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
-
+    public Cashflow createFirstVersionCF(CashflowBuilder cashflowBuilder) {
         long foCashflowVersion = cashflowBuilder.foCashflowVersion();
         RevisionType revisionType = cashflowBuilder.revisionType();
         if (!(foCashflowVersion == CashflowConstants.FO_CASHFLOW_FIRST_VERSION && revisionType == RevisionType.NEW)) {
@@ -97,9 +96,7 @@ public class CashflowVersionManager {
     }
 
     /// Creates COR+CAN cashflows or one CAN cashflow depending on [CashflowBuilder#revisionType]
-    public List<Cashflow> createNonFirstVersionCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder, TradeEventType tradeEventType, TradeEventAction tradeEventAction, TradeType tradeType) {
-        computeAndSetRevisionType(cashflowBuilder, tradeEventType, tradeEventAction, tradeType);
-
+    public List<Cashflow> createNonFirstVersionCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
         long foCashflowVersion = cashflowBuilder.foCashflowVersion();
         if (foCashflowVersion <= CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
@@ -144,13 +141,14 @@ public class CashflowVersionManager {
     /// - [FoCashMessage#tradeEventType],
     /// - [FoCashMessage#tradeEventAction]
     /// - [FoCashMessage#cashflowVersion]
-    private static void computeAndSetRevisionType(CashflowBuilder cashflowBuilder, TradeEventType tradeEventType, TradeEventAction tradeEventAction, TradeType tradeType) {
+    public void computeAndSetRevisionType(CashflowBuilder cashflowBuilder, FoCashMessageAvro foMsg) {
+        TradeEventType tradeEventType = FoCashMessageMapper.mapTradeEventType(foMsg);
+        TradeEventAction tradeEventAction = FoCashMessageMapper.mapTradeEventAction(foMsg);
+        TradeType tradeType = cashflowBuilder.tradeType();
         boolean firstCashflow = CashflowUtil.isFirstFoCashflowVersion(cashflowBuilder.foCashflowVersion());
-        if (tradeType == null || tradeEventType == null || tradeEventAction == null) {
-            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("fields[tradeType,tradeEventType,tradeEventAction] are null", new ExceptionSubCategory(INVALID_MESSAGE, null));
-        }
+
         Optional<RevisionType> result = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
-        RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(INVALID_MESSAGE, null)));
+        RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(REVISION_TYPE_RESOLUTION_FAILURE, null)));
         cashflowBuilder.revisionType(revisionType);
     }
 

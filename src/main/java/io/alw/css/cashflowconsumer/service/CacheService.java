@@ -4,7 +4,6 @@ import io.alw.css.cashflowconsumer.model.SsiWithCounterpartyData;
 import io.alw.css.cashflowconsumer.model.NostroDetails;
 import io.alw.css.cashflowconsumer.model.OverridableNostro;
 import io.alw.css.cashflowconsumer.model.PrimaryNostro;
-import io.alw.css.cashflowconsumer.util.DateUtil;
 import io.alw.css.domain.cashflow.TradeType;
 import io.alw.css.domain.exception.CategorizedRuntimeException;
 import io.alw.css.domain.exception.ExceptionSubCategory;
@@ -28,7 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static io.alw.css.cashflowconsumer.model.constants.CashflowConsumerExceptionSubCategoryType.UNEXPECTED_REFDATA;
+import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType.UNEXPECTED_REFDATA;
 
 @Service
 public class CacheService {
@@ -71,9 +70,9 @@ public class CacheService {
             var currCode = (String) rs.get(0);
             var countryCode = (String) rs.get(1);
             var pmFlag = (boolean) rs.get(2);
-            var cutOffTime = DateUtil.toLocalTime((Time) rs.get(3));
+            var cutOffTime = ((Time) rs.get(3)).toLocalTime();
             var active = (boolean) rs.get(4);
-            var entryTime = DateUtil.toLocalDateTime((Timestamp) rs.get(5));
+            var entryTime = ((Timestamp) rs.get(5)).toLocalDateTime();
             return new Currency(currCode, countryCode, pmFlag, cutOffTime, active, entryTime);
         }).collect(Collectors.toMap(Currency::currCode, curr -> curr));
 
@@ -87,7 +86,7 @@ public class CacheService {
             var countryName = (String) rs.get(5);
             var bicCode = (String) rs.get(6);
             var active = (boolean) rs.get(7);
-            var entryTime = DateUtil.toLocalDateTime((Timestamp) rs.get(8));
+            var entryTime = ((Timestamp) rs.get(8)).toLocalDateTime();
             return new Entity(entityCode, entityVersion, entityName, currCode, countryCode, countryName, bicCode, active, entryTime);
         }).collect(Collectors.toMap(Entity::entityCode, ent -> ent));
     }

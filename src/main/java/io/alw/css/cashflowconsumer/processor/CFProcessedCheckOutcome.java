@@ -15,6 +15,6 @@ public sealed interface CFProcessedCheckOutcome {
     record NonFirstVersion(Cashflow lastProcessedCashflow) implements CFProcessedCheckOutcome {
     }
 
-    record LastCashflowIsCancelled(Cashflow lastProcessedCashflow) implements CFProcessedCheckOutcome {
+    record LastCashflowIsCancelled() implements CFProcessedCheckOutcome {
     }
 }

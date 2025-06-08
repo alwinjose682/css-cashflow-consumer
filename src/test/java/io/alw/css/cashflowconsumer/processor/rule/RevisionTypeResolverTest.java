@@ -42,15 +42,15 @@ class RevisionTypeResolverTest {
         Rule rule2 = new Rule(FX, COR, NON_FIRST, List.of(
                 new TradeEventAndAction(TradeEventType.AMEND, ADD),
                 new TradeEventAndAction(TradeEventType.AMEND, MODIFY),
-                new TradeEventAndAction(TradeEventType.AMEND, REMOVE),
                 new TradeEventAndAction(TradeEventType.BOOK_MOVE, ADD),
                 new TradeEventAndAction(TradeEventType.BOOK_MOVE, MODIFY),
                 new TradeEventAndAction(TradeEventType.CORRECTION, ADD),
-                new TradeEventAndAction(TradeEventType.CORRECTION, MODIFY),
-                new TradeEventAndAction(TradeEventType.CORRECTION, REMOVE)
+                new TradeEventAndAction(TradeEventType.CORRECTION, MODIFY)
         ));
         Rule rule3 = new Rule(FX, CAN, NON_FIRST, List.of(
-                new TradeEventAndAction(TradeEventType.CANCEL, ADD)
+                new TradeEventAndAction(TradeEventType.CANCEL, ADD),
+                new TradeEventAndAction(TradeEventType.AMEND, REMOVE),
+                new TradeEventAndAction(TradeEventType.CORRECTION, REMOVE)
         ));
     }
 

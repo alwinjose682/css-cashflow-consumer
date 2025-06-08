@@ -8,7 +8,7 @@ import java.io.Serializable;
 @Embeddable
 public record CashflowEntityPK(
         @Column(name = "CASHFLOW_ID", nullable = false)
-        Long cashflowId,
+        Long cashflowID,
         @Column(name = "CASHFLOW_VERSION", nullable = false)
         Integer cashflowVersion
 ) implements Serializable {

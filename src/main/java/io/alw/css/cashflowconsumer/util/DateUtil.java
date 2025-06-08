@@ -1,16 +1,11 @@
 package io.alw.css.cashflowconsumer.util;
 
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 
 public final class DateUtil {
-    public static LocalTime toLocalTime(Time time) {
-        return time.toLocalTime();
-    }
 
-    public static LocalDateTime toLocalDateTime(Timestamp timestamp) {
-        return timestamp.toLocalDateTime();
+    public static LocalDate formatValueDate(String dateString) {
+        return LocalDate.parse(dateString, DateTimeFormatter.ISO_DATE);
     }
 }

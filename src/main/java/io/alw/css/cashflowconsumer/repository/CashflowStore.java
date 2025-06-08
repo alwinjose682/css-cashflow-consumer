@@ -1,47 +1,93 @@
 package io.alw.css.cashflowconsumer.repository;
 
-import io.alw.css.cashflowconsumer.model.jpa.CashflowConsumerAuditEntity;
+import io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType;
 import io.alw.css.cashflowconsumer.model.jpa.CashflowEntity;
-import io.alw.css.cashflowconsumer.repository.mapper.CashflowEntityMapper;
+import io.alw.css.cashflowconsumer.model.jpa.CashflowRejectionEntity;
+import io.alw.css.cashflowconsumer.repository.mapper.CashflowMapper;
 import io.alw.css.domain.cashflow.Cashflow;
-import io.alw.css.domain.cashflow.TradeType;
-import io.alw.css.domain.common.EventMsgProcessStatus;
+import io.alw.css.domain.cashflow.RevisionType;
+import io.alw.css.domain.exception.CategorizedRuntimeException;
+import io.alw.css.domain.exception.ExceptionSubCategory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 public final class CashflowStore {
+    private final static Logger log = LoggerFactory.getLogger(CashflowStore.class);
+
     @PersistenceContext
     private EntityManager em;
     private final CashflowRepository cashflowRepository;
+    private final CashflowRejectionRepository cashflowRejectionRepository;
 
-    public CashflowStore(CashflowRepository cashflowRepository) {
+    public CashflowStore(CashflowRepository cashflowRepository, CashflowRejectionRepository cashflowRejectionRepository) {
         this.cashflowRepository = cashflowRepository;
+        this.cashflowRejectionRepository = cashflowRejectionRepository;
     }
 
     public long getNewCashflowID() {
-        return (long) em.createNativeQuery("select CSS_SERVICES.cashflow_seq.nextval from dual").getSingleResult();
+        return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
     }
 
-    private long getCFConsumerAuditId() {
-        return (long) em.createNativeQuery("select CSS_SERVICES.cf_consumer_audit_seq.nextval from dual").getSingleResult();
-    }
-
-    public void saveCFReceiveAudit(long foCashflowID, int foCashflowVersion, long tradeID, int tradeVersion, TradeType tradeType) {
-        long id = getCFConsumerAuditId();
-        CashflowConsumerAuditEntity cashflowConsumerAuditEntity = new CashflowConsumerAuditEntity(id, foCashflowID, foCashflowVersion, tradeID, tradeVersion, tradeType, EventMsgProcessStatus.RECEIVED, LocalDateTime.now());
-        em.persist(cashflowConsumerAuditEntity);
+    private long getNewCashflowRejectionID() {
+        return (long) em.createNativeQuery("select CSS.cashflow_rejection_seq.nextval from dual").getSingleResult();
     }
 
     /// This method returns null if no result. Does not use Optional
     public Cashflow getLastProcessedCashflow(long foCashflowID) {
         CashflowEntity lpcf = cashflowRepository.findLastProcessedCashflow(foCashflowID);
         if (lpcf != null) {
-            return CashflowEntityMapper.instance().mapToDomain(lpcf);
+            return CashflowMapper.instance().mapToDomain_excludingAssociations(lpcf);
         } else {
             return null;
         }
     }
 
+    public void saveRejection(CashflowRejectionEntity cfr) {
+        cashflowRejectionRepository.save(cfr);
+    }
+
+    public void saveFirstVersionCF(Cashflow cf) {
+        CashflowEntity cfe = CashflowMapper.mapToEntity(cf);
+        cashflowRepository.save(cfe);
+    }
+
+    /// This method does following actions atomically:
+    /// 1. Update last processed cashflow's 'latest' field to 'N'
+    /// 2. If exactly ONE row is updated in step 1, continues to step 3. If zero rows updated, throws a [io.alw.css.domain.exception.CategorizedRuntimeException]
+    /// 3. inserts the offset and correction cashflows to DB. (Correction cashflow is created with latest='Y')
+    /// 4. return
+    ///
+    /// NOTE: Since this method does multiple individual updates, it may be better to use a database procedure instead
+    public void saveNonFirstVersionCF(List<Cashflow> cashflows, Cashflow lastProcessedCashflow) {
+        long lpcfId = lastProcessedCashflow.cashflowID();
+        int lpcfVer = lastProcessedCashflow.cashflowVersion();
+
+        // Step 1: Update last processed cashflow's 'latest' field to 'N'
+        int numOfRowsUpdated = cashflowRepository.updateLastProcessedCashflowToNonLatest(lpcfId, lpcfVer);
+
+        // Step 2 and 3: If exactly ONE row is updated, persists the cashflows. Otherwise, throws an exception
+        if (numOfRowsUpdated == 1) {
+            cashflows.stream()
+                    .map(CashflowMapper::mapToEntity)
+                    .forEach(cashflowRepository::save);
+        } else if (numOfRowsUpdated == 0) {
+            Cashflow amendCf = cashflows.stream().filter(cf -> cf.revisionType() == RevisionType.COR).findFirst().get();
+            String errMsg = "Unable to persist cashflow amendment[foCfID: " + amendCf.foCashflowID() + ", foCfVer: " + amendCf.foCashflowVersion() + "] to database."
+                    + " LastProcessedCashflow[cfID: " + lpcfId + ", cfVer: " + lpcfVer + "] was updated possibly by a concurrent transaction";
+            log.error(errMsg);
+            throw CategorizedRuntimeException.TECHNICAL_RECOVERABLE(errMsg, new ExceptionSubCategory(ExceptionSubCategoryType.CF_PERSISTENCE_FAILURE, lastProcessedCashflow)
+            );
+        } else if (numOfRowsUpdated > 1) {
+            Cashflow amendCf = cashflows.stream().filter(cf -> cf.revisionType() == RevisionType.COR).findFirst().get();
+            String errMsg = "Unable to persist cashflow amendment[foCfID: " + amendCf.foCashflowID() + ", foCfVer: " + amendCf.foCashflowVersion() + "] to database."
+                    + ". Multiple cashflows exist in database with latest='Y' for CashflowID " + lpcfId + ". The cashflow is in invalid state and this should NOT happen.";
+            log.error(errMsg);
+            throw CategorizedRuntimeException.TECHNICAL_RECOVERABLE(errMsg, new ExceptionSubCategory(ExceptionSubCategoryType.CF_PERSISTENCE_FAILURE, lastProcessedCashflow)
+            );
+        }
+    }
 }
