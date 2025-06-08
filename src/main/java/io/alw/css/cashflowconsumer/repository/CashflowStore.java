@@ -2,6 +2,7 @@ package io.alw.css.cashflowconsumer.repository;
 
 import io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType;
 import io.alw.css.cashflowconsumer.model.jpa.CashflowEntity;
+import io.alw.css.cashflowconsumer.model.jpa.CashflowEntityPK;
 import io.alw.css.cashflowconsumer.model.jpa.CashflowRejectionEntity;
 import io.alw.css.cashflowconsumer.repository.mapper.CashflowMapper;
 import io.alw.css.domain.cashflow.Cashflow;
@@ -13,7 +14,7 @@ import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
+import java.util.Map;
 
 public final class CashflowStore {
     private final static Logger log = LoggerFactory.getLogger(CashflowStore.class);
@@ -53,6 +54,7 @@ public final class CashflowStore {
     public void saveFirstVersionCF(Cashflow cf) {
         CashflowEntity cfe = CashflowMapper.mapToEntity(cf);
         cashflowRepository.save(cfe);
+        log.debug("Saved new cashflow to DB. CashflowID-Ver: {}-{}", cf.cashflowID(), cf.cashflowVersion());
     }
 
     /// This method does following actions atomically:
@@ -62,7 +64,7 @@ public final class CashflowStore {
     /// 4. return
     ///
     /// NOTE: Since this method does multiple individual updates, it may be better to use a database procedure instead
-    public void saveNonFirstVersionCF(List<Cashflow> cashflows, Cashflow lastProcessedCashflow) {
+    public void saveNonFirstVersionCF(Map<RevisionType, Cashflow> cashflows, Cashflow lastProcessedCashflow) {
         long lpcfId = lastProcessedCashflow.cashflowID();
         int lpcfVer = lastProcessedCashflow.cashflowVersion();
 
@@ -71,18 +73,22 @@ public final class CashflowStore {
 
         // Step 2 and 3: If exactly ONE row is updated, persists the cashflows. Otherwise, throws an exception
         if (numOfRowsUpdated == 1) {
-            cashflows.stream()
+            cashflows.values().stream()
                     .map(CashflowMapper::mapToEntity)
-                    .forEach(cashflowRepository::save);
+                    .forEach(cf -> {
+                        cashflowRepository.save(cf);
+                        CashflowEntityPK cashflowEntityPK = cf.getCashflowEntityPK();
+                        log.debug("Saved cashflow amendment to DB. CashflowID-Ver: {}-{}", cashflowEntityPK.cashflowID(), cashflowEntityPK.cashflowVersion());
+                    });
         } else if (numOfRowsUpdated == 0) {
-            Cashflow amendCf = cashflows.stream().filter(cf -> cf.revisionType() == RevisionType.COR).findFirst().get();
+            Cashflow amendCf = cashflows.get(RevisionType.COR);
             String errMsg = "Unable to persist cashflow amendment[foCfID: " + amendCf.foCashflowID() + ", foCfVer: " + amendCf.foCashflowVersion() + "] to database."
                     + " LastProcessedCashflow[cfID: " + lpcfId + ", cfVer: " + lpcfVer + "] was updated possibly by a concurrent transaction";
             log.error(errMsg);
             throw CategorizedRuntimeException.TECHNICAL_RECOVERABLE(errMsg, new ExceptionSubCategory(ExceptionSubCategoryType.CF_PERSISTENCE_FAILURE, lastProcessedCashflow)
             );
         } else if (numOfRowsUpdated > 1) {
-            Cashflow amendCf = cashflows.stream().filter(cf -> cf.revisionType() == RevisionType.COR).findFirst().get();
+            Cashflow amendCf = cashflows.get(RevisionType.COR);
             String errMsg = "Unable to persist cashflow amendment[foCfID: " + amendCf.foCashflowID() + ", foCfVer: " + amendCf.foCashflowVersion() + "] to database."
                     + ". Multiple cashflows exist in database with latest='Y' for CashflowID " + lpcfId + ". The cashflow is in invalid state and this should NOT happen.";
             log.error(errMsg);

@@ -9,9 +9,11 @@ import io.alw.css.domain.cashflow.*;
 import io.alw.css.domain.exception.CategorizedRuntimeException;
 import io.alw.css.domain.exception.ExceptionSubCategory;
 import io.alw.css.serialization.cashflow.FoCashMessageAvro;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType.*;
@@ -30,6 +32,8 @@ import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryTy
 /// in order to guarantee that an N+2 version of a CF does not offset a live Nth version.
 /// Due to this property, the CF the COR or CAN cashflow offsets can be identified simply based on the version number(which is straight forward).
 public class CashflowVersionManager {
+    private static final Logger log = LoggerFactory.getLogger(CashflowVersionManager.class);
+
     private final CashflowStore cashflowStore;
     private final TXRW txrw;
     private final TXRO txro;
@@ -88,15 +92,18 @@ public class CashflowVersionManager {
 //        long cashflowID = cashflowStore.getNewCashflowID();
         long cashflowID = txrw.execute(_ -> cashflowStore.getNewCashflowID());
         int cashflowVersion = CashflowConstants.CSS_CASHFLOW_FIRST_VERSION;
-        return cashflowBuilder
+        Cashflow cashflow = cashflowBuilder
                 .cashflowID(cashflowID)
                 .cashflowVersion(cashflowVersion)
                 .latest(true)
                 .build();
+
+        log.debug("Created new cashflow. CashflowID-Ver: {}-{}", cashflow.cashflowID(), cashflow.cashflowVersion());
+        return cashflow;
     }
 
     /// Creates COR+CAN cashflows or one CAN cashflow depending on [CashflowBuilder#revisionType]
-    public List<Cashflow> createNonFirstVersionCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
+    public Map<RevisionType, Cashflow> createNonFirstVersionCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
         long foCashflowVersion = cashflowBuilder.foCashflowVersion();
         if (foCashflowVersion <= CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
@@ -108,7 +115,7 @@ public class CashflowVersionManager {
             case COR -> createAmendCFAndOffsetForPrevCF(previousCashflow, cashflowBuilder);
             case CAN -> {
                 Cashflow cancelCashflow = createCancelCF(previousCashflow, cashflowBuilder);
-                yield List.of(cancelCashflow);
+                yield Map.of(RevisionType.CAN, cancelCashflow);
             }
         };
     }
@@ -150,6 +157,8 @@ public class CashflowVersionManager {
         Optional<RevisionType> result = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
         RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(REVISION_TYPE_RESOLUTION_FAILURE, null)));
         cashflowBuilder.revisionType(revisionType);
+
+        log.info("Computed revisionType[{}] for foCashflowID: {}", revisionType, foMsg.getCashflowID());
     }
 
     /// Creates a CAN cashflow from the previous cashflow which must be live. This offsets the live cashflow.
@@ -165,7 +174,7 @@ public class CashflowVersionManager {
     /// - inputDateTime = `currentCashflow`.inputDateTime
     private Cashflow createCancelCF(Cashflow previousCashflow, CashflowBuilder currentCashflowBuilder) {
         BigDecimal prevCashflowAmount = previousCashflow.amount();
-        return CashflowBuilder.builder(previousCashflow)
+        Cashflow cashflow = CashflowBuilder.builder(previousCashflow)
                 .revisionType(RevisionType.CAN)
                 .cashflowID(currentCashflowBuilder.cashflowID())
                 .cashflowVersion(currentCashflowBuilder.cashflowVersion() + 1)
@@ -175,12 +184,16 @@ public class CashflowVersionManager {
                 .latest(true)
                 .inputDateTime(currentCashflowBuilder.inputDateTime())
                 .build();
+
+        log.debug("Created cancellation cashflow. CashflowID-Ver: {}-{}", cashflow.cashflowID(), cashflow.cashflowVersion());
+        return cashflow;
     }
 
-    private List<Cashflow> createAmendCFAndOffsetForPrevCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
+    private Map<RevisionType, Cashflow> createAmendCFAndOffsetForPrevCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
         Cashflow offsetCashflow = createOffsetCashflow(previousCashflow, cashflowBuilder);
         Cashflow amendCashflow = createAmendCashflow(previousCashflow, cashflowBuilder, offsetCashflow);
-        return List.of(offsetCashflow, amendCashflow);
+        log.debug("Created amendment cashflow and corresponding offset. CashflowID-Ver: {}-{}", amendCashflow.cashflowID(), amendCashflow.cashflowVersion());
+        return Map.of(RevisionType.CAN, offsetCashflow, RevisionType.COR, amendCashflow);
     }
 
     ///  Creates current cashflow with:

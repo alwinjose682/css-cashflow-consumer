@@ -8,6 +8,8 @@ import io.alw.css.domain.common.PaymentConstants;
 import io.alw.css.domain.exception.*;
 import io.alw.css.serialization.cashflow.FoCashMessageAvro;
 import io.alw.css.serialization.cashflow.TradeLinkAvro;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -20,6 +22,7 @@ import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryTy
 
 /// @see #mapToDomain(FoCashMessageAvro)
 public final class FoCashMessageMapper {
+    private final static Logger log = LoggerFactory.getLogger(FoCashMessageMapper.class);
 
     /// Maps below sections of [FoCashMessage] to CSS [Cashflow]
     /// - Fo Cashflow Version Data
@@ -34,7 +37,7 @@ public final class FoCashMessageMapper {
     /// @return CashflowBuilder
     public static CashflowBuilder mapToDomain(FoCashMessageAvro foMsg) {
         CashflowBuilder builder = CashflowBuilder.builder();
-        return builder
+        builder
                 // Cashflow Entry Audit
                 .inputDateTime(LocalDateTime.now())
                 .inputBy(InputBy.CSS_SYS)
@@ -59,6 +62,9 @@ public final class FoCashMessageMapper {
                 .counterpartyCode(foMsg.getCounterpartyCode())
                 .amount(formatAmount(foMsg))
                 .currCode(foMsg.getCurrCode().toUpperCase());
+
+        log.debug("Mapped FoCashMessage values to Cashflow. FoCashflowID-Ver: {}-{}", builder.foCashflowID(), builder.foCashflowVersion());
+        return builder;
     }
 
     private static List<TradeLink> mapTradeLinks(FoCashMessageAvro foMsg) {

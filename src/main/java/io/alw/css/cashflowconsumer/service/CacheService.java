@@ -65,7 +65,7 @@ public class CacheService {
     }
 
     private void loadLocalCache() {
-        var currencyLoadSql = "select currCode, countryCode, pmFlag, cutOffTime, activeNostro, entryTime from currency";
+        var currencyLoadSql = "select currCode, countryCode, pmFlag, cutOffTime, active, entryTime from currency";
         currencyLocalCache = igniteClient.query(new SqlFieldsQuery(currencyLoadSql)).getAll().stream().map(rs -> {
             var currCode = (String) rs.get(0);
             var countryCode = (String) rs.get(1);
@@ -76,7 +76,7 @@ public class CacheService {
             return new Currency(currCode, countryCode, pmFlag, cutOffTime, active, entryTime);
         }).collect(Collectors.toMap(Currency::currCode, curr -> curr));
 
-        var entityLoadSql = "select entityCode, entityVersion, entityName, currCode, countryCode, countryName, bicCode, activeNostro, entryTime from entity";
+        var entityLoadSql = "select entityCode, entityVersion, entityName, currCode, countryCode, countryName, bicCode, active, entryTime from entity";
         entityLocalCache = igniteClient.query(new SqlFieldsQuery(entityLoadSql)).getAll().stream().map(rs -> {
             var entityCode = (String) rs.get(0);
             var entityVersion = (int) rs.get(1);

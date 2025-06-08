@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
 
 import static io.alw.css.cashflowconsumer.processor.CFProcessedCheckOutcome.*;
 
@@ -53,8 +53,10 @@ public class CashflowService {
             CFProcessedCheckOutcome outcome = cashflowVersionManager.checkAgainstLastProcessedCashflow(foCashflowID, foCashflowVersion, tradeID, tradeVersion);
             evaluateAndProcessFurther(outcome, cashflowBuilder, foMsg);
         } catch (CategorizedRuntimeException e) {
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion);
             rejectCashflow(foMsg, e, inputBy);
         } catch (Exception e) {
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion);
             rejectCashflow(foMsg, CategorizedRuntimeException.UNKNOWN(e.getMessage(), foMsg), inputBy);
         }
     }
@@ -68,11 +70,13 @@ public class CashflowService {
                 cashflowEnricher.validateAndEnrich(cashflowBuilder);
                 Cashflow cf = cashflowVersionManager.createFirstVersionCF(cashflowBuilder);
                 txrw.executeWithoutResult(_ -> cashflowStore.saveFirstVersionCF(cf));
+                log.info("Successfully processed cashflow. CashflowID-Ver: {}-{}", cf.cashflowID(), cf.cashflowVersion());
             }
             case NonFirstVersion(var lastProcessedCashflow) -> {
                 cashflowEnricher.validateAndEnrich(cashflowBuilder);
-                List<Cashflow> cashflows = cashflowVersionManager.createNonFirstVersionCF(lastProcessedCashflow, cashflowBuilder);
+                Map<RevisionType, Cashflow> cashflows = cashflowVersionManager.createNonFirstVersionCF(lastProcessedCashflow, cashflowBuilder);
                 txrw.executeWithoutResult(_ -> cashflowStore.saveNonFirstVersionCF(cashflows, lastProcessedCashflow));
+                logSuccessfulProcessingOfNonFirstVersion(cashflows);
             }
             case AlreadyProcessed _ -> {
                 log.info("Received duplicate cashflow[foCfID: {}, foCfVer: {}]", foCashflowID, foCashflowVersion);
@@ -81,14 +85,25 @@ public class CashflowService {
                 ExceptionType exceptionType = ExceptionType.BUSINESS;
                 ExceptionCategory exceptionCategory = ExceptionCategory.UNRECOVERABLE;
                 String exceptionSubCategory = ExceptionSubCategoryType.LAST_CASHFLOW_IS_CANCELLED;
-                String msg = "Further amendment is not permitted when last cashflow is cancelled";
+                String msg = "No further amendment is permitted when last cashflow is cancelled";
                 boolean replayable = false;
                 int numOfRetries = 0;
                 LocalDateTime createdDateTime = LocalDateTime.now();
                 InputBy inputBy = InputBy.CSS_SYS;
 
+                log.info("Last cashflow is cancelled. No further amendment is permitted. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion);
                 rejectCashflow(foMsg, exceptionType, exceptionCategory, exceptionSubCategory, msg, replayable, numOfRetries, createdDateTime, inputBy);
             }
+        }
+    }
+
+    private void logSuccessfulProcessingOfNonFirstVersion(Map<RevisionType, Cashflow> cashflows) {
+        final Cashflow cf = cashflows.get(RevisionType.COR);
+        if (cf != null) {
+            log.info("Successfully processed cashflow. CashflowID-Ver: {}-{}", cf.cashflowID(), cf.cashflowVersion());
+        } else {
+            final Cashflow cf1 = cashflows.get(RevisionType.CAN);
+            log.info("Successfully processed cashflow. CashflowID-Ver: {}-{}", cf1.cashflowID(), cf1.cashflowVersion());
         }
     }
 
@@ -99,9 +114,8 @@ public class CashflowService {
     private void rejectCashflow(FoCashMessageAvro foMsg, ExceptionType exceptionType, ExceptionCategory exceptionCategory, String exceptionSubCategory, String msg, boolean replayable, int numOfRetries, LocalDateTime createdDateTime, InputBy inputBy) {
         long foCashflowID = foMsg.getCashflowID();
         int foCashflowVersion = foMsg.getCashflowVersion();
-
-        log.info("Last processed cashflow is cancelled. Further amendment is not permitted. foCashflowID: {}, foCashflowVer: {}", foCashflowID, foCashflowVersion);
         CashflowRejectionEntity cfr = new CashflowRejectionEntity();
+
         cfr
                 .setFoCashflowID(foCashflowID)
                 .setFoCashflowVersion(foCashflowVersion)

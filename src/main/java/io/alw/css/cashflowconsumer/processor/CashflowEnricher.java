@@ -45,6 +45,8 @@ public class CashflowEnricher {
         enrichWithNostroID(builder, nostroDetails);
         setInternalValue(builder, ssiWithCpData);
         setPaymentSuppressionValue(builder);
+
+        log.debug("Successfully validated cashflow. FoCashflowID-Ver: {}-{}", builder.foCashflowID(), builder.foCashflowVersion());
     }
 
     public void validateEntityAndCurrCode(CashflowBuilder builder) {
