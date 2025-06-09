@@ -154,6 +154,7 @@ public class CashflowVersionManager {
         TradeType tradeType = cashflowBuilder.tradeType();
         boolean firstCashflow = CashflowUtil.isFirstFoCashflowVersion(cashflowBuilder.foCashflowVersion());
 
+        log.trace("Firing drools rule. firstCashflow: {}, tradeType: {}, tradeEventType: {}, tradeEventAction: {}", firstCashflow, tradeType, tradeEventType, tradeEventAction);
         Optional<RevisionType> result = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
         RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(REVISION_TYPE_RESOLUTION_FAILURE, null)));
         cashflowBuilder.revisionType(revisionType);

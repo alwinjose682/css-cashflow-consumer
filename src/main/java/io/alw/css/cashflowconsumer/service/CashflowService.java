@@ -53,10 +53,10 @@ public class CashflowService {
             CFProcessedCheckOutcome outcome = cashflowVersionManager.checkAgainstLastProcessedCashflow(foCashflowID, foCashflowVersion, tradeID, tradeVersion);
             evaluateAndProcessFurther(outcome, cashflowBuilder, foMsg);
         } catch (CategorizedRuntimeException e) {
-            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion);
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion, e);
             rejectCashflow(foMsg, e, inputBy);
         } catch (Exception e) {
-            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion);
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion, e);
             rejectCashflow(foMsg, CategorizedRuntimeException.UNKNOWN(e.getMessage(), foMsg), inputBy);
         }
     }
@@ -114,30 +114,34 @@ public class CashflowService {
     private void rejectCashflow(FoCashMessageAvro foMsg, ExceptionType exceptionType, ExceptionCategory exceptionCategory, String exceptionSubCategory, String msg, boolean replayable, int numOfRetries, LocalDateTime createdDateTime, InputBy inputBy) {
         long foCashflowID = foMsg.getCashflowID();
         int foCashflowVersion = foMsg.getCashflowVersion();
-        CashflowRejectionEntity cfr = new CashflowRejectionEntity();
+        try {
+            CashflowRejectionEntity cfr = new CashflowRejectionEntity();
+            cfr
+                    .setFoCashflowID(foCashflowID)
+                    .setFoCashflowVersion(foCashflowVersion)
+                    .setTradeID(foMsg.getTradeID())
+                    .setTradeVersion(foMsg.getTradeVersion())
+                    .setTradeType(foMsg.getTradeType())
+                    .setValueDate(foMsg.getValueDate() == null ? null : DateUtil.formatValueDate(foMsg.getValueDate()))
+                    .setEntityCode(foMsg.getEntityCode())
+                    .setCounterpartyCode(foMsg.getCounterpartyCode())
+                    .setAmount(foMsg.getAmount())
+                    .setCurrCode(foMsg.getCurrCode())
+                    .setExceptionType(exceptionType.name())
+                    .setExceptionCategory(exceptionCategory.name())
+                    .setExceptionSubCategory(exceptionSubCategory)
+                    .setMsg(msg)
+                    .setReplayable(replayable ? YesNo.Y : YesNo.N)
+                    .setNumOfRetries(numOfRetries)
+                    .setCreatedDateTime(createdDateTime)
+                    .setInputBy(inputBy)
+                    .setUpdatedDateTime(LocalDateTime.now())
+            ;
 
-        cfr
-                .setFoCashflowID(foCashflowID)
-                .setFoCashflowVersion(foCashflowVersion)
-                .setTradeID(foMsg.getTradeID())
-                .setTradeVersion(foMsg.getTradeVersion())
-                .setTradeType(foMsg.getTradeType())
-                .setValueDate(foMsg.getValueDate() == null ? null : DateUtil.formatValueDate(foMsg.getValueDate()))
-                .setEntityCode(foMsg.getEntityCode())
-                .setCounterpartyCode(foMsg.getCounterpartyCode())
-                .setAmount(foMsg.getAmount())
-                .setCurrCode(foMsg.getCurrCode())
-                .setExceptionType(exceptionType.name())
-                .setExceptionCategory(exceptionCategory.name())
-                .setExceptionSubCategory(exceptionSubCategory)
-                .setMsg(msg)
-                .setReplayable(replayable ? YesNo.Y : YesNo.N)
-                .setNumOfRetries(numOfRetries)
-                .setCreatedDateTime(createdDateTime)
-                .setInputBy(inputBy)
-                .setUpdatedDateTime(LocalDateTime.now())
-        ;
-
-        txrw.executeWithoutResult(_ -> cashflowStore.saveRejection(cfr));
+            txrw.executeWithoutResult(_ -> cashflowStore.saveRejection(cfr));
+        } catch (Exception e) {
+            log.error("Failed to save cashflow rejection to database. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion, e);
+            throw new RuntimeException(e);
+        }
     }
 }
