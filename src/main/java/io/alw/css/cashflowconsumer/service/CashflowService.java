@@ -53,10 +53,10 @@ public class CashflowService {
             CFProcessedCheckOutcome outcome = cashflowVersionManager.checkAgainstLastProcessedCashflow(foCashflowID, foCashflowVersion, tradeID, tradeVersion);
             evaluateAndProcessFurther(outcome, cashflowBuilder, foMsg);
         } catch (CategorizedRuntimeException e) {
-            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion, e);
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}. Msg: {}", foCashflowID, foCashflowVersion, e.getMessage(), e);
             rejectCashflow(foMsg, e, inputBy);
         } catch (Exception e) {
-            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}", foCashflowID, foCashflowVersion, e);
+            log.info("Failed to process cashflow. FoCashflowID-Ver: {}-{}. Msg: {}", foCashflowID, foCashflowVersion, e.getMessage(), e);
             rejectCashflow(foMsg, CategorizedRuntimeException.UNKNOWN(e.getMessage(), foMsg), inputBy);
         }
     }

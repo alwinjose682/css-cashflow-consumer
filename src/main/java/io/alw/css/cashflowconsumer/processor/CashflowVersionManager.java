@@ -1,7 +1,7 @@
 package io.alw.css.cashflowconsumer.processor;
 
-import io.alw.css.cashflowconsumer.repository.CashflowStore;
 import io.alw.css.cashflowconsumer.processor.rule.RevisionTypeResolver;
+import io.alw.css.cashflowconsumer.repository.CashflowStore;
 import io.alw.css.cashflowconsumer.util.CashflowUtil;
 import io.alw.css.dbshared.tx.TXRO;
 import io.alw.css.dbshared.tx.TXRW;
@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.Optional;
 
 import static io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType.*;
 
@@ -155,8 +154,7 @@ public class CashflowVersionManager {
         boolean firstCashflow = CashflowUtil.isFirstFoCashflowVersion(cashflowBuilder.foCashflowVersion());
 
         log.trace("Firing drools rule. firstCashflow: {}, tradeType: {}, tradeEventType: {}, tradeEventAction: {}", firstCashflow, tradeType, tradeEventType, tradeEventAction);
-        Optional<RevisionType> result = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
-        RevisionType revisionType = result.orElseThrow(() -> CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Unable to determine RevisionType from the given combination of inputs", new ExceptionSubCategory(REVISION_TYPE_RESOLUTION_FAILURE, null)));
+        RevisionType revisionType = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
         cashflowBuilder.revisionType(revisionType);
 
         log.info("Computed revisionType[{}] for foCashflowID: {}", revisionType, foMsg.getCashflowID());
