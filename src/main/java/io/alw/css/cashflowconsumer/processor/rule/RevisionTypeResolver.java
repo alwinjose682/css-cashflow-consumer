@@ -44,6 +44,10 @@ public final class RevisionTypeResolver {
     }
 
     private static Rule findMatchingRule(List<Rule> rules, TradeEventType tradeEventType, TradeEventAction tradeEventAction) {
+        if (rules == null) {
+            return null;
+        }
+
         for (Rule rule : rules) {
             for (TradeEventAndAction tea : rule.tradeEventAndActionRecords()) {
                 if (tea.event() == tradeEventType && tea.action() == tradeEventAction) {
