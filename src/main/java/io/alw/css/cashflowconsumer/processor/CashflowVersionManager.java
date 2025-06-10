@@ -82,7 +82,7 @@ public class CashflowVersionManager {
     // TODO: When transaction is readOnly for JpaTransactionManager, does spring cause libs to acquire a RO physical connection or just optimizes JPA dirty checking etc? AskVlad
 //    @Transactional
     public Cashflow createFirstVersionCF(CashflowBuilder cashflowBuilder) {
-        long foCashflowVersion = cashflowBuilder.foCashflowVersion();
+        int foCashflowVersion = cashflowBuilder.foCashflowVersion();
         RevisionType revisionType = cashflowBuilder.revisionType();
         if (!(foCashflowVersion == CashflowConstants.FO_CASHFLOW_FIRST_VERSION && revisionType == RevisionType.NEW)) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version or incorrect revisionType determination", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
@@ -103,7 +103,7 @@ public class CashflowVersionManager {
 
     /// Creates COR+CAN cashflows or one CAN cashflow depending on [CashflowBuilder#revisionType]
     public Map<RevisionType, Cashflow> createNonFirstVersionCF(Cashflow previousCashflow, CashflowBuilder cashflowBuilder) {
-        long foCashflowVersion = cashflowBuilder.foCashflowVersion();
+        int foCashflowVersion = cashflowBuilder.foCashflowVersion();
         if (foCashflowVersion <= CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
             throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
         }

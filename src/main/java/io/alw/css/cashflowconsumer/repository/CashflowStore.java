@@ -14,6 +14,7 @@ import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 public final class CashflowStore {
@@ -30,7 +31,7 @@ public final class CashflowStore {
     }
 
     public long getNewCashflowID() {
-        return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
+        return ((BigDecimal) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult()).longValue();
     }
 
     private long getNewCashflowRejectionID() {

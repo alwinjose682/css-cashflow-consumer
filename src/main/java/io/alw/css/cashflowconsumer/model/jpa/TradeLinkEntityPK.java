@@ -17,6 +17,8 @@ public class TradeLinkEntityPK {
     }
 
     public TradeLinkEntityPK(long cashflowID, int cashflowVersion) {
+        this.cashflowID = cashflowID;
+        this.cashflowVersion = cashflowVersion;
     }
 
     @Override
