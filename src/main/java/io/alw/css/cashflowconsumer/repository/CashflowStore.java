@@ -30,8 +30,26 @@ public final class CashflowStore {
         this.cashflowRejectionRepository = cashflowRejectionRepository;
     }
 
+    /// **TODO**: When switching to Oracle DB, check whether Hibernate still returns Long
+    ///
+    /// **SUBTLE ISSUE**:
+    ///
+    /// When below property is set, the nextval of the sequence returned by Hibernate is of type java.lang.Long. When this property is not set, Hibernate returns java.math.BigDecimal
+    /// - property: spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.OracleDialect
+    /// - properties 'spring.jpa.database-platform' and 'spring.jpa.properties.hibernate.dialect' are for the same purpose and have the same effect
+    ///
+    /// Exception:
+    /// class java.lang.Long cannot be cast to class java.math.BigDecimal (java.lang.Long and java.math.BigDecimal are in module java.base of loader 'bootstrap')
+    ///
+    /// **UPDATE**: Hibernate version 6.X has changed the mapping of DB type to Java type. (Looks like this applies ONLY for native queries)
+    /// Check: https://discourse.hibernate.org/t/oracledialect-changes-in-number-type-mappings-in-version-6/7503
+    /// Still, this difference in mapping happen only when enabling the said property!
+    /// NOTE: JDBC still maps NUMBER to BigDecimal
+    ///
+    /// Example: Hibernate 6.X maps Oracle NUMBER type based on its width to java.lang.Integer, Long, BigDecimal etc. instead of the behaviour of old Hibernate versions that used to map oracle NUMBER to BigDecimal. Float types are mapped differently
     public long getNewCashflowID() {
-        return ((BigDecimal) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult()).longValue();
+//        return ((BigDecimal) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult()).longValue();
+        return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
     }
 
     private long getNewCashflowRejectionID() {
