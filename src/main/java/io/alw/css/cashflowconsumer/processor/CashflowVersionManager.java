@@ -159,7 +159,7 @@ public class CashflowVersionManager {
         RevisionType revisionType = RevisionTypeResolver.resolve(firstCashflow, tradeType, tradeEventType, tradeEventAction);
         cashflowBuilder.revisionType(revisionType);
 
-        log.info("Computed revisionType[{}] for foCashflowID: {}", revisionType, foMsg.getCashflowID());
+        log.info("Computed revisionType[{}] for FoCashflowID-Ver: {}-{}", revisionType, foMsg.getCashflowID(), foMsg.getCashflowVersion());
     }
 
     /// Creates a CAN cashflow from the previous cashflow which must be live. This offsets the live cashflow.

@@ -63,7 +63,7 @@ public class CashflowEntity {
     @Column(name = "VALUE_DATE")
     LocalDate valueDate;
 
-    @OneToMany(mappedBy = "cashflow", fetch = FetchType.LAZY, cascade = CascadeType.PERSIST)
+    @OneToMany(mappedBy = "cashflow", fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     List<TradeLinkEntity> tradeLinks;
 
     // ObligationData
