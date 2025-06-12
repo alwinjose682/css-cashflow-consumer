@@ -16,7 +16,7 @@ public class CashflowRejectionEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "cashflowRejectionSeq")
-    @SequenceGenerator(sequenceName = "cashflow_rejection_seq", allocationSize = 1, name = "cashflowRejectionSeq")
+    @SequenceGenerator(sequenceName = "css_common_seq", allocationSize = 1, name = "cashflowRejectionSeq")
     @Column(name = "ID")
     Long id;
 
@@ -79,17 +79,6 @@ public class CashflowRejectionEntity {
 
     @Column(name = "UPDATED_DATE_TIME")
     LocalDateTime updatedDateTime;
-
-    @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof CashflowRejectionEntity that)) return false;
-        return Objects.equals(id, that.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hashCode(id);
-    }
 
     public Long getId() {
         return id;
@@ -269,5 +258,17 @@ public class CashflowRejectionEntity {
     public CashflowRejectionEntity setUpdatedDateTime(LocalDateTime updatedDateTime) {
         this.updatedDateTime = updatedDateTime;
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        CashflowRejectionEntity that = (CashflowRejectionEntity) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 }

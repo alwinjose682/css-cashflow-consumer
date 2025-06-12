@@ -1,9 +1,7 @@
 package io.alw.css.cashflowconsumer.repository;
 
 import io.alw.css.cashflowconsumer.model.constants.ExceptionSubCategoryType;
-import io.alw.css.cashflowconsumer.model.jpa.CashflowEntity;
-import io.alw.css.cashflowconsumer.model.jpa.CashflowEntityPK;
-import io.alw.css.cashflowconsumer.model.jpa.CashflowRejectionEntity;
+import io.alw.css.cashflowconsumer.model.jpa.*;
 import io.alw.css.cashflowconsumer.repository.mapper.CashflowMapper;
 import io.alw.css.domain.cashflow.Cashflow;
 import io.alw.css.domain.cashflow.RevisionType;
@@ -14,7 +12,6 @@ import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
 import java.util.Map;
 
 public final class CashflowStore {
@@ -52,10 +49,6 @@ public final class CashflowStore {
         return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
     }
 
-    private long getNewCashflowRejectionID() {
-        return (long) em.createNativeQuery("select CSS.cashflow_rejection_seq.nextval from dual").getSingleResult();
-    }
-
     /// This method returns null if no result. Does not use Optional
     public Cashflow getLastProcessedCashflow(long foCashflowID) {
         CashflowEntity lpcf = cashflowRepository.findLastProcessedCashflow(foCashflowID);
@@ -71,9 +64,9 @@ public final class CashflowStore {
     }
 
     public void saveFirstVersionCF(Cashflow cf) {
+        log.trace("Saving Cashflow[{}-{}] to DB. tradeLinks: {}", cf.cashflowID(), cf.cashflowVersion(), cf.tradeLinks() != null);
         CashflowEntity cfe = CashflowMapper.mapToEntity(cf);
         cashflowRepository.save(cfe);
-        log.debug("Saved new cashflow to DB. CashflowID-Ver: {}-{}", cf.cashflowID(), cf.cashflowVersion());
     }
 
     /// This method does following actions atomically:
@@ -93,12 +86,9 @@ public final class CashflowStore {
         // Step 2 and 3: If exactly ONE row is updated, persists the cashflows. Otherwise, throws an exception
         if (numOfRowsUpdated == 1) {
             cashflows.values().stream()
+                    .peek(cf -> log.trace("Saving Cashflow[{}-{}] to DB. tradeLinks: {}", cf.cashflowID(), cf.cashflowVersion(), cf.tradeLinks() != null))
                     .map(CashflowMapper::mapToEntity)
-                    .forEach(cf -> {
-                        cashflowRepository.save(cf);
-                        CashflowEntityPK cashflowEntityPK = cf.getCashflowEntityPK();
-                        log.debug("Saved cashflow amendment to DB. CashflowID-Ver: {}-{}", cashflowEntityPK.cashflowID(), cashflowEntityPK.cashflowVersion());
-                    });
+                    .forEach(cashflowRepository::save);
         } else if (numOfRowsUpdated == 0) {
             Cashflow amendCf = cashflows.get(RevisionType.COR);
             String errMsg = "Unable to persist cashflow amendment[foCfID: " + amendCf.foCashflowID() + ", foCfVer: " + amendCf.foCashflowVersion() + "] to database."

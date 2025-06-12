@@ -9,6 +9,7 @@ import java.io.Serializable;
 public record CashflowEntityPK(
         @Column(name = "CASHFLOW_ID", nullable = false)
         Long cashflowID,
+
         @Column(name = "CASHFLOW_VERSION", nullable = false)
         Integer cashflowVersion
 ) implements Serializable {

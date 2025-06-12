@@ -225,6 +225,13 @@ public class CashflowEntity {
         this.tradeLinks = tradeLinks;
     }
 
+    public void addTradeLinks(List<TradeLinkEntity> tradeLinks) {
+        this.tradeLinks = tradeLinks;
+        if (tradeLinks != null) {
+            tradeLinks.forEach(tle -> tle.setCashflow(this));
+        }
+    }
+
     public String getEntityCode() {
         return entityCode;
     }

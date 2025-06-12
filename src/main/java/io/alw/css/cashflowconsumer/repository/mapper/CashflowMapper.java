@@ -2,7 +2,6 @@ package io.alw.css.cashflowconsumer.repository.mapper;
 
 import io.alw.css.cashflowconsumer.model.jpa.CashflowEntity;
 import io.alw.css.cashflowconsumer.model.jpa.TradeLinkEntity;
-import io.alw.css.cashflowconsumer.model.jpa.TradeLinkEntityPK;
 import io.alw.css.domain.cashflow.Cashflow;
 import io.alw.css.domain.cashflow.TradeLink;
 import org.mapstruct.Mapper;
@@ -27,17 +26,25 @@ public interface CashflowMapper {
 
     static CashflowEntity mapToEntity(Cashflow cashflow) {
         CashflowEntity cashflowEntity = instance().mapToEntity_excludingTradeLinks(cashflow);
-        cashflowEntity.setTradeLinks(mapTradeLinkToTradeLinkEntity(cashflow));
+        cashflowEntity.setTradeLinks(mapTradeLinkToTradeLinkEntity(cashflow, cashflowEntity));
         return cashflowEntity;
     }
 
-    static List<TradeLinkEntity> mapTradeLinkToTradeLinkEntity(Cashflow cashflow) {
+    static List<TradeLinkEntity> mapTradeLinkToTradeLinkEntity(Cashflow cashflow, CashflowEntity cashflowEntity) {
         List<TradeLink> tradeLinks = cashflow.tradeLinks();
         long cashflowID = cashflow.cashflowID();
         int cashflowVersion = cashflow.cashflowVersion();
 
         return tradeLinks == null
                 ? null
-                : tradeLinks.stream().map(tl -> new TradeLinkEntity(new TradeLinkEntityPK(cashflowID, cashflowVersion), tl.linkType(), tl.relatedReference())).toList();
+                : tradeLinks.stream().map(tl -> {
+            TradeLinkEntity tle = new TradeLinkEntity();
+            tle.setCashflowID(cashflowID);
+            tle.setCashflowVersion(cashflowVersion);
+            tle.setLinkType(tl.linkType());
+            tle.setRelatedReference(tl.relatedReference());
+            tle.setCashflow(cashflowEntity);
+            return tle;
+        }).toList();
     }
 }

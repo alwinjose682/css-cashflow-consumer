@@ -84,8 +84,10 @@ public class CashflowVersionManager {
     public Cashflow createFirstVersionCF(CashflowBuilder cashflowBuilder) {
         int foCashflowVersion = cashflowBuilder.foCashflowVersion();
         RevisionType revisionType = cashflowBuilder.revisionType();
-        if (!(foCashflowVersion == CashflowConstants.FO_CASHFLOW_FIRST_VERSION && revisionType == RevisionType.NEW)) {
-            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Not first version or incorrect revisionType determination", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
+        if (foCashflowVersion != CashflowConstants.FO_CASHFLOW_FIRST_VERSION) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Previous cashflow version is not processed", new ExceptionSubCategory(NOT_FIRST_VERSION, null));
+        } else if (revisionType != RevisionType.NEW) {
+            throw CategorizedRuntimeException.TECHNICAL_UNRECOVERABLE("Incorrect revisionType determination. RevisionType NEW is expected for FoCashflow version 1. Computed RevisionType is: " + revisionType, new ExceptionSubCategory(INCORRECT_REVISION_TYPE_RESOLUTION, null));
         }
 
 //        long cashflowID = cashflowStore.getNewCashflowID();

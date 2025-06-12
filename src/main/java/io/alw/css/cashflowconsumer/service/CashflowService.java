@@ -108,7 +108,7 @@ public class CashflowService {
     }
 
     private void rejectCashflow(FoCashMessageAvro foMsg, CategorizedRuntimeException cre, InputBy inputBy) {
-        rejectCashflow(foMsg, cre.type(), cre.category(), cre.subCategory().type(), cre.msg(), cre.replayable(), cre.numOfRetries(), cre.createdTime(), inputBy);
+        rejectCashflow(foMsg, cre.type(), cre.category(), cre.subCategory().type(), cre.getMessage(), cre.replayable(), cre.numOfRetries(), cre.createdTime(), inputBy);
     }
 
     private void rejectCashflow(FoCashMessageAvro foMsg, ExceptionType exceptionType, ExceptionCategory exceptionCategory, String exceptionSubCategory, String msg, boolean replayable, int numOfRetries, LocalDateTime createdDateTime, InputBy inputBy) {
