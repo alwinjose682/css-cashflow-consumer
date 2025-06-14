@@ -2,26 +2,42 @@
 
 ## Cashflow Consumer Processing Sequence (CCPS)
 
-| Step | Action                         | Description                                                                                                                            | Technical Aspects                                                                                                                                                                                   |
-|------|--------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1    | **Consume Message**            | Consumes message produced by the upstream system: fo-simulator                                                                         | The message is in avro format and is consumed from a Kafka topic. Messages are continuously produced by fo-simulator. (Several messages per second)                                                 |
-| 2    | **DB entry**                   | Creates an initial database(DB) entry                                                                                                  | Uses JPA/Hibernate. Either Oracle DB or H2 DB can be used by changing the configs                                                                                                                   |
-| 3    | **Map The Fields**             | Maps the fields of the upstream message to the format used by CSS. Also does verifications of the fields being mapped                  | The avro message is mapped to Cashflow record's CashflowBuilder                                                                                                                                     |
-| 4    | **Determine Cashflow Version** | Determines whether the message consumed is: <br/> New or Amendment or Duplicate <br/> Or whether the Previous CF is cancelled          | Performs a check against the DB                                                                                                                                                                     |
-| 5    | **Reference Data Validation**  | Validates following reference data values to ensure that they do exist and are still active:<br/> Currency, Entity, Counterparty       | Uses Apache Ignite InMemory Cache. Reference data is held in an in memory cache(Apache Ignite). Currency and Entity are retrieved from Ignite and locally cached                                    |
-| 6    | **Cashflow Enrichment**        | Following fields are computed and cashflow is enriched with these values:<br/> nostroID, ssiID, isInternal, paymentSuppressionCategory | Uses Apache Ignite InMemory Cache. These values are computed based on the reference data held in Ignite and based on few other criteria                                                             |
-| 7    | **Create Cashflow**            | Create the cashflow and if applicable, create an offsetting cashflow as well. Details are not given here, but documented in the code   | Obtains a new cashflowID from database sequence(if RevisionType is NEW)                                                                                                                             |
-| 8    | **Persist Cashflow**           | By synchronizing potential concurrent activities, persists the cashflow to the database(DB)                                            | Uses JPA/Hibernate. In a single Transaction, the previous cashflow version's 'latest' field is updated to 'N' **if it is still 'N'** and the new cashflow version is persisted with 'latest' as 'Y' |
-| 9    | **Create Un-Net Event**        | Creates Un-Net event if applicable. **NOTE**: This step is not implemented yet                                                         |
+| Step | Action                                     | Description                                                                                                                            | Technical Aspects                                                                                                                                                                                   |
+|------|--------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1    | **Consume Message**                        | Consumes message produced by the upstream system: fo-simulator                                                                         | The message is in avro format and is consumed from a Kafka topic. Messages are continuously produced by fo-simulator. (Several messages per second)                                                 |
+| 2    | **Map The Fields**                         | Maps the fields of the upstream message to Cashflow. Also does verifications of the fields being mapped                                | The avro message is mapped to Cashflow record's CashflowBuilder                                                                                                                                     |
+| 3    | **Determine Cashflow Version**             | Determines whether the message consumed is: <br/> New or Amendment or Duplicate <br/> Or whether the Previous CF is cancelled          | Performs a check against the DB                                                                                                                                                                     |
+| 4    | **Reference Data Validation**              | Validates following reference data values to ensure that they do exist and are still active:<br/> Currency, Entity, Counterparty       | Uses Apache Ignite InMemory Cache. Reference data is held in an in memory cache(Apache Ignite). Currency and Entity are retrieved from Ignite and locally cached                                    |
+| 5    | **Cashflow Enrichment**                    | Following fields are computed and cashflow is enriched with these values:<br/> nostroID, ssiID, isInternal, paymentSuppressionCategory | Uses Apache Ignite InMemory Cache. These values are computed based on the reference data held in Ignite and based on few other criteria                                                             |
+| 6    | **Create Cashflow**                        | Create the cashflow and if applicable, create an offsetting cashflow as well. Details are not given here, but documented in the code   | Obtains a new cashflowID from database sequence(if RevisionType is NEW)                                                                                                                             |
+| 7    | **Persist Cashflow**                       | By synchronizing potential concurrent activities, persists the cashflow to the database(DB)                                            | Uses JPA/Hibernate. In a single Transaction, the previous cashflow version's 'latest' field is updated to 'N' **if it is still 'N'** and the new cashflow version is persisted with 'latest' as 'Y' |
+| 8    | **Create Confirmation Cancellation Event** | Creates and publishes a Confirmation Cancellation Event if applicable. **NOTE**: This step is not implemented yet                      |
+
+**NOTE:**
+At any step if an exception occurs or cashflow cannot be processed, a rejection entry is written to database. There are several categories of rejections and the rejection entry itself is called a
+CategorizedRuntimeException
 
 ### CCPS#8: Persist Cashflow
 
-    At this step of the processing sequence, the cashflow that is validated and enriched need to be persisted to the database.
-     -  OR Persist the rejection if failed due to a concurrent transaction due to Cashflow Confirmation or User's manual action  - 
-    But various concurrent actions can happen, like:
-        1) sending unconfirmation event when processing a CF amend
-        2) sending confirmation event when confirming a CF
-        3) concurrent CF amend by CSS user
+    The cashflow that is validated and enriched is persisted in the database.
+
+    Concurrent actions to be accounted for when processing a cashflow amendment:
+        When processing a cashflow amendment, various concurrent actions, although less frequent, can happen:
+            1) Confirmation of the previous version of the cashflow and publishing the confirmation event to netting-service
+            2) Concurrent amendment of the previous version of the Cashflow by a CSS user
+    
+            **NOTE:** 
+                The point 1 above is also a concurrent action that needs to be accounted for, becuase, the cashflow-consumer has to generate a Confirmation Cancellation Event if the previous cashflow is in confirmed state.
+                ie; The cashflow-consumer has to generate confirmation cancellation event and confirmation-consumer has to generate confirmation event. These are potential concurrent actions that needs to be synchronized.
+        
+        Ideally, these potential concurrent actions and the cashflow amendment processing should be serialized one after the other to ensure correctness of payment shape generation.
+        But, it is not feasible to pessimistically serialize these potential concurrent actions. The main reason is that the probability of concurrent actions will be low at any point in time and full serialization is costly.
+        Therefore, cashflow-consumer, does the synchronization optimistically, when persisting the cashflow, via the traditional approach of relying on the atomic transaction guarantee of databases.
+        
+        Persisting the cashflow amendment in an optimistic database transaction:
+            In a single transaction, the previous cashflow version's 'latest' field is updated to 'N' **if it is still 'N'** and the new cashflow version is persisted with 'latest' as 'Y'
+            Since this is done optimistically, it is very well possible that a concurrent action has taken place and the cashflow considered as previous cashflow is no longer the real previous cashflow.
+            In such a case the optimistic transaction will not complete and the cashflow amendment will be rejected which can be replayed later to re-process the cashflow amendment.
 
 ### CCPS#6: Cashflow Enrichment
 
