@@ -177,8 +177,7 @@ public class CashflowVersionManager {
         BigDecimal prevCashflowAmount = previousCashflow.amount();
         Cashflow cashflow = CashflowBuilder.builder(previousCashflow)
                 .revisionType(RevisionType.CAN)
-                .cashflowID(currentCashflowBuilder.cashflowID())
-                .cashflowVersion(currentCashflowBuilder.cashflowVersion() + 1)
+                .cashflowVersion(previousCashflow.cashflowVersion() + 1)
                 .foCashflowID(currentCashflowBuilder.foCashflowID())
                 .foCashflowVersion(currentCashflowBuilder.foCashflowVersion())
                 .amount(prevCashflowAmount.negate())
