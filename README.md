@@ -16,7 +16,7 @@
 **NOTE:**
 At any step if an exception occurs or the cashflow cannot be processed, a rejection entry is written to database.
 
-### CCPS#8: Persist Cashflow
+### CCPS#7: Persist Cashflow
 
     The cashflow that is validated and enriched is persisted in the database.
 
@@ -38,7 +38,7 @@ At any step if an exception occurs or the cashflow cannot be processed, a reject
             Since this is done optimistically, it is very well possible that a concurrent action has taken place and the cashflow considered as previous cashflow is no longer the real previous cashflow.
             In such a case the optimistic transaction will not complete and the cashflow amendment will be rejected which can be replayed later to re-process the cashflow amendment.
 
-### CCPS#6: Cashflow Enrichment
+### CCPS#5: Cashflow Enrichment
 
     Cashflow Enrichment involves determining the appropriate value for each field that needs to computed by CSS(Cashflow Settlement System).
 
