@@ -14,8 +14,7 @@
 | 8    | **Create Confirmation Cancellation Event** | Creates and publishes a Confirmation Cancellation Event if applicable. **NOTE**: This step is not implemented yet                      |
 
 **NOTE:**
-At any step if an exception occurs or cashflow cannot be processed, a rejection entry is written to database. There are several categories of rejections and the rejection entry itself is called a
-CategorizedRuntimeException
+At any step if an exception occurs or the cashflow cannot be processed, a rejection entry is written to database.
 
 ### CCPS#8: Persist Cashflow
 
