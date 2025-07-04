@@ -12,6 +12,7 @@ import jakarta.persistence.PersistenceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 public final class CashflowStore {
@@ -45,8 +46,8 @@ public final class CashflowStore {
     ///
     /// Example: Hibernate 6.X maps Oracle NUMBER type based on its width to java.lang.Integer, Long, BigDecimal etc. instead of the behaviour of old Hibernate versions that used to map oracle NUMBER to BigDecimal. Float types are mapped differently
     public long getNewCashflowID() {
-//        return ((BigDecimal) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult()).longValue();
-        return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
+        return ((BigDecimal) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult()).longValue();
+//        return (long) em.createNativeQuery("select CSS.cashflow_seq.nextval from dual").getSingleResult();
     }
 
     /// This method returns null if no result. Does not use Optional
