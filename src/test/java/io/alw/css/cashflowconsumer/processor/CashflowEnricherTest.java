@@ -198,7 +198,6 @@ class CashflowEnricherTest {
                 .tradeType(TradeType.BOND)
                 .bookCode("DUMY")
                 .counterBookCode(null)
-                .secondaryLedgerAccount(null)
                 .transactionType(TransactionType.MARKET)
                 .rate(new BigDecimal("1.2154754"))
                 .valueDate(LocalDate.now().plusDays(1))

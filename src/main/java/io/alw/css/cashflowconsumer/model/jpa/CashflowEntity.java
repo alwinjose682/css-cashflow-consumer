@@ -51,9 +51,6 @@ public class CashflowEntity {
     @Column(name = "COUNTER_BOOK_CODE")
     String counterBookCode;
 
-    @Column(name = "SECONDARY_LEDGER_ACCOUNT")
-    String secondaryLedgerAccount;
-
     @Column(name = "TRANSACTION_TYPE")
     String transactionType;
 
@@ -183,14 +180,6 @@ public class CashflowEntity {
 
     public void setCounterBookCode(String counterBookCode) {
         this.counterBookCode = counterBookCode;
-    }
-
-    public String getSecondaryLedgerAccount() {
-        return secondaryLedgerAccount;
-    }
-
-    public void setSecondaryLedgerAccount(String secondaryLedgerAccount) {
-        this.secondaryLedgerAccount = secondaryLedgerAccount;
     }
 
     public String getTransactionType() {

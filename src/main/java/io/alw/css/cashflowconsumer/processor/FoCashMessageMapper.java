@@ -52,7 +52,6 @@ public final class FoCashMessageMapper {
                 .tradeType(mapTradeType(foMsg))
                 .bookCode(foMsg.getBookCode())
                 .counterBookCode(mapTransactionTypeAndGetCounterBookID(builder, foMsg))
-                .secondaryLedgerAccount(foMsg.getSecondaryLedgerAccount())
                 .rate(formatRate(foMsg))
                 .valueDate(mapValueDate(foMsg))
                 .tradeLinks(mapTradeLinks(foMsg))
