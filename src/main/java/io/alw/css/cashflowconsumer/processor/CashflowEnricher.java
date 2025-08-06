@@ -49,7 +49,7 @@ public class CashflowEnricher {
         log.debug("Successfully Validated and Enriched the cashflow. FoCashflowID-Ver: {}-{}", builder.foCashflowID(), builder.foCashflowVersion());
     }
 
-    public void validateEntityAndCurrCode(CashflowBuilder builder) {
+    void validateEntityAndCurrCode(CashflowBuilder builder) {
         String entityCode = builder.entityCode();
         String currCode = builder.currCode();
         boolean entityActive = cacheService.isEntityActive(entityCode);
@@ -61,7 +61,7 @@ public class CashflowEnricher {
         }
     }
 
-    public void enrichWithNostroID(CashflowBuilder builder, NostroDetails nostroDetails) {
+    void enrichWithNostroID(CashflowBuilder builder, NostroDetails nostroDetails) {
         String entityCode = builder.entityCode();
         String currCode = builder.currCode();
 
@@ -85,7 +85,7 @@ public class CashflowEnricher {
         throw CategorizedRuntimeException.BUSINESS_RECOVERABLE(msg, new ExceptionSubCategory(ExceptionSubCategoryType.MISSING_NOSTRO, null));
     }
 
-    public void enrichWithSsiID(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
+    void enrichWithSsiID(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
         String counterpartyCode = builder.counterpartyCode();
         String currCode = builder.currCode();
         TradeType tradeType = builder.tradeType();
@@ -100,19 +100,20 @@ public class CashflowEnricher {
         }
     }
 
-    public void setPaymentSuppressionValue(CashflowBuilder builder) {
+    /// Suppresses the cashflow if the abs(amount) is less than or equal to the amount in suppression configuration
+    void setPaymentSuppressionValue(CashflowBuilder builder) {
         String cfCurr = builder.currCode();
-        BigDecimal cfAmt = builder.amount();
+        BigDecimal absoluteCfAmt = builder.amount().abs();
 
         if (suppressionConfig.suppressInterbookTX() && builder.transactionType() == INTER_BOOK) {
             builder.paymentSuppressionCategory(PaymentSuppressionCategory.INTERBOOK);
             log.info("Cashflow will be suppressed. SuppressionCategory: {}, FoCashflowID-Ver: {}-{}", PaymentSuppressionCategory.INTERBOOK, builder.foCashflowID(), builder.foCashflowVersion());
             return;
-        } else if (cfAmt.compareTo(suppressionConfig.highestSuppressibleAmount()) <= 0) {
+        } else if (absoluteCfAmt.compareTo(suppressionConfig.highestSuppressibleAmount()) <= 0) {
             for (Map.Entry<String, BigDecimal> entry : suppressionConfig.suppressibleCurrToAmountMap().entrySet()) {
                 String curr = entry.getKey();
                 BigDecimal amt = entry.getValue();
-                if (curr.equalsIgnoreCase(cfCurr) && cfAmt.compareTo(amt) <= 0) {
+                if (curr.equalsIgnoreCase(cfCurr) && absoluteCfAmt.compareTo(amt) <= 0) {
                     builder.paymentSuppressionCategory(PaymentSuppressionCategory.AMOUNT_TOO_SMALL);
                     log.info("Cashflow will be suppressed. SuppressionCategory: {}, FoCashflowID-Ver: {}-{}", PaymentSuppressionCategory.AMOUNT_TOO_SMALL, builder.foCashflowID(), builder.foCashflowVersion());
                     return;
@@ -124,7 +125,7 @@ public class CashflowEnricher {
         log.trace("Cashflow is NOT suppressible. FoCashflowID-Ver: {}-{}", builder.foCashflowID(), builder.foCashflowVersion());
     }
 
-    public void setInternalValue(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
+    void setInternalValue(CashflowBuilder builder, SsiWithCounterpartyData ssiWithCpData) {
         boolean internalTransactionType = switch (builder.transactionType()) {
             case INTER_BOOK, INTER_BRANCH, INTER_COMPANY -> true;
             case CLIENT, MARKET, CORPORATE_ACTION -> false;

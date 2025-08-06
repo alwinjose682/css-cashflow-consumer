@@ -25,7 +25,7 @@ public class SuppressionConfig {
         BigDecimal[] highestAmount = new BigDecimal[]{new BigDecimal("0.0")};
 
         getUptoAmountAsMap(uptoAmount).forEach((curr, amountStr) -> {
-            BigDecimal amount = new BigDecimal(amountStr); // BigDecimal is created by passing a String, which is correct
+            BigDecimal amount = new BigDecimal(amountStr).abs(); // BigDecimal is created by passing a String, which is correct
             if (amount.compareTo(highestAmount[0]) > 0) {
                 highestAmount[0] = amount;
             }

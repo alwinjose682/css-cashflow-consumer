@@ -7,7 +7,6 @@ import io.alw.css.cashflowconsumer.repository.CashflowRejectionRepository;
 import io.alw.css.cashflowconsumer.repository.CashflowRepository;
 import io.alw.css.cashflowconsumer.repository.CashflowStore;
 import io.alw.css.cashflowconsumer.service.CacheService;
-import io.alw.css.cashflowconsumer.service.CashflowGeneratorStarter;
 import io.alw.css.dbshared.tx.TXRO;
 import io.alw.css.dbshared.tx.TXRW;
 import org.apache.ignite.configuration.ClientConfiguration;
@@ -32,26 +31,15 @@ import org.springframework.web.client.RestTemplate;
 @EntityScan(basePackages = "io.alw.css.cashflowconsumer.model.jpa")
 // no @EnableTransactionManagement. Declarative tx is not used. Programmatic tx is used instead
 public class AppConfig {
-    private final static Logger log = LoggerFactory.getLogger(AppConfig.class);
 
-    @Value("${cashflow-generator.start-switch:#{null}}")
-    private Boolean startAllCashflowGenerators;
+    @Bean
+    public ApplicationStartupEvent applicationStartupEvent(RestTemplate restTemplate) {
+        return new ApplicationStartupEvent(restTemplate);
+    }
 
-    @Value("${rest.services.cashflow-generator:#{null}}")
-    private String cashflowGeneratorUrl;
-
-    @EventListener(ApplicationReadyEvent.class)
-    void startFoSimulatorGenerators() {
-        if (startAllCashflowGenerators == null || !startAllCashflowGenerators) {
-            log.info("Cashflow Generators of upstream simulator are not started as per configuration. Cashflow Generators need to be started manually");
-            return;
-        } else if (cashflowGeneratorUrl == null) {
-            log.info("Cashflow Generators of upstream simulator are not started because cashflow generator url is not configured. Cashflow Generators need to be started manually");
-            return;
-        }
-
-        RestTemplate restTemplate = new RestTemplateBuilder().build();
-        CashflowGeneratorStarter.startAll(restTemplate, cashflowGeneratorUrl);
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplateBuilder().build();
     }
 
     // Explicitly making TXRW and TXRO as spring beans.

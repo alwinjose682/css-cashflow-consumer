@@ -1,0 +1,11 @@
+app:
+  cfc:
+    suppress:
+      upto-amount: "{ USD:'1.0', EUR:'1.0', GBP:'1.0', CNH:'3.0', INR:'10.0' }"
+      interbook-tx: true
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=Oracle;DEFAULT_NULL_ORDERING=HIGH;INIT=create schema if not exists css
+    username: css
+    password: freepass
