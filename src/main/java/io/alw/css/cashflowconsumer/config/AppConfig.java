@@ -1,5 +1,7 @@
 package io.alw.css.cashflowconsumer.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.alw.css.cashflowconsumer.model.properties.SuppressionConfig;
 import io.alw.css.cashflowconsumer.processor.CashflowEnricher;
 import io.alw.css.cashflowconsumer.processor.CashflowVersionManager;
@@ -33,8 +35,10 @@ import org.springframework.web.client.RestTemplate;
 public class AppConfig {
 
     @Bean
-    public ApplicationStartupEvent applicationStartupEvent(RestTemplate restTemplate) {
-        return new ApplicationStartupEvent(restTemplate);
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 
     @Bean
@@ -53,6 +57,11 @@ public class AppConfig {
     @Bean("txrw")
     public TXRW txrw(PlatformTransactionManager platformTransactionManager) {
         return new TXRW(platformTransactionManager);
+    }
+
+    @Bean
+    public ApplicationStartupEvent applicationStartupEvent(RestTemplate restTemplate, CashflowRepository cashflowRepository, ObjectMapper objectMapper) {
+        return new ApplicationStartupEvent(restTemplate, cashflowRepository, objectMapper);
     }
 
     @Bean
