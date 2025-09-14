@@ -75,7 +75,7 @@ public class ApplicationStartupEvent implements ApplicationListener<ApplicationR
 
     private CashflowGenerationInitialValues getCashflowGenerationInitialValues() {
         FoCashflowIDAndTradeID maxIds = cashflowRepository.findMaxFoCashflowIdAndTradeId();
-        if (maxIds == null) {
+        if (maxIds == null || maxIds.foCashflowID() == null || maxIds.tradeID() == null) {
             var initValues = new CashflowGenerationInitialValues(LocalDate.now(), 1054321L, 15432L);
             log.info("Staring Cashflow Generators with initial values: {}", initValues);
             return initValues;
